@@ -1,0 +1,48 @@
+
+services:
+  web:
+    image: odoo:17.0
+    container_name: odoo-app
+    restart: unless-stopped
+    depends_on:
+      - db
+      - rabbitmq
+    ports:
+      - "8069:8069"
+    volumes:
+      - "./odoo_web_data:/var/lib/odoo"
+  db:
+    image: postgres:15
+    container_name: odoo-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_PASSWORD=odoo
+      - POSTGRES_USER=odoo
+    volumes:
+      - "./odoo_db_data:/var/lib/postgresql/data"
+  adminer:
+    image: adminer
+    container_name: adminer
+    restart: unless-stopped
+    ports:
+      - 8080:8080
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+
+#  heartbeat:
+#    build: ./heartbeat
+#    container_name: heartbeat-service
+#    restart: unless-stopped
+#    depends_on:
+#      - rabbitmq
+#    environment:
+#      RABBITMQ_HOST: rabbitmq
