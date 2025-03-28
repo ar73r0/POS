@@ -1,0 +1,259 @@
+2025-03-28 15:20:54,108 - __main__ - ERROR - Authentication error: not well-formed (invalid token): line 27, column 77
+2025-03-28 15:21:24,216 - __main__ - ERROR - Authentication error: not well-formed (invalid token): line 27, column 77
+2025-03-28 15:23:27,009 - __main__ - ERROR - Authentication error: Authentication failed
+2025-03-28 15:25:02,655 - __main__ - DEBUG - Attempting authentication:
+2025-03-28 15:25:02,655 - __main__ - DEBUG - URL: http://localhost:8069
+2025-03-28 15:25:02,656 - __main__ - DEBUG - Database: odoo
+2025-03-28 15:25:02,656 - __main__ - DEBUG - Username: admin
+2025-03-28 15:25:02,706 - __main__ - DEBUG - Server Version Info: {'server_version': '17.0-20250320', 'server_version_info': [17, 0, 0, 'final', 0, ''], 'server_serie': '17.0', 'protocol_version': 1}
+2025-03-28 15:25:02,745 - __main__ - ERROR - Authentication failed: Invalid credentials or configuration
+2025-03-28 15:25:02,746 - __main__ - ERROR - Detailed Authentication Error: Authentication failed: Invalid credentials
+2025-03-28 15:25:02,761 - __main__ - ERROR - Traceback (most recent call last):
+  File "C:\Users\User\OneDrive\POS\CRUD_Kassa.py", line 57, in _debug_authentication
+    raise ValueError("Authentication failed: Invalid credentials")
+ValueError: Authentication failed: Invalid credentials
+
+2025-03-28 15:25:02,761 - __main__ - DEBUG - Attempting authentication:
+2025-03-28 15:25:02,761 - __main__ - DEBUG - URL: http://localhost:8069
+2025-03-28 15:25:02,762 - __main__ - DEBUG - Database: odoo
+2025-03-28 15:25:02,762 - __main__ - DEBUG - Username: admin
+2025-03-28 15:25:02,811 - __main__ - DEBUG - Server Version Info: {'server_version': '17.0-20250320', 'server_version_info': [17, 0, 0, 'final', 0, ''], 'server_serie': '17.0', 'protocol_version': 1}
+2025-03-28 15:25:02,874 - __main__ - ERROR - Authentication failed: Invalid credentials or configuration
+2025-03-28 15:25:02,875 - __main__ - ERROR - Detailed Authentication Error: Authentication failed: Invalid credentials
+2025-03-28 15:25:02,875 - __main__ - ERROR - Traceback (most recent call last):
+  File "C:\Users\User\OneDrive\POS\CRUD_Kassa.py", line 57, in _debug_authentication
+    raise ValueError("Authentication failed: Invalid credentials")
+ValueError: Authentication failed: Invalid credentials
+
+2025-03-28 15:25:02,876 - __main__ - DEBUG - Attempting authentication:
+2025-03-28 15:25:02,877 - __main__ - DEBUG - URL: http://localhost:8069
+2025-03-28 15:25:02,877 - __main__ - DEBUG - Database: odoo
+2025-03-28 15:25:02,877 - __main__ - DEBUG - Username: odoo
+2025-03-28 15:25:02,932 - __main__ - DEBUG - Server Version Info: {'server_version': '17.0-20250320', 'server_version_info': [17, 0, 0, 'final', 0, ''], 'server_serie': '17.0', 'protocol_version': 1}
+2025-03-28 15:25:02,978 - __main__ - ERROR - Authentication failed: Invalid credentials or configuration
+2025-03-28 15:25:02,978 - __main__ - ERROR - Detailed Authentication Error: Authentication failed: Invalid credentials
+2025-03-28 15:25:02,979 - __main__ - ERROR - Traceback (most recent call last):
+  File "C:\Users\User\OneDrive\POS\CRUD_Kassa.py", line 57, in _debug_authentication
+    raise ValueError("Authentication failed: Invalid credentials")
+ValueError: Authentication failed: Invalid credentials
+
+2025-03-28 15:25:02,980 - __main__ - DEBUG - Attempting authentication:
+2025-03-28 15:25:02,980 - __main__ - DEBUG - URL: http://localhost:8069
+2025-03-28 15:25:02,980 - __main__ - DEBUG - Database: odoo
+2025-03-28 15:25:02,980 - __main__ - DEBUG - Username: odoo
+2025-03-28 15:25:03,017 - __main__ - DEBUG - Server Version Info: {'server_version': '17.0-20250320', 'server_version_info': [17, 0, 0, 'final', 0, ''], 'server_serie': '17.0', 'protocol_version': 1}
+2025-03-28 15:25:03,054 - __main__ - ERROR - Authentication failed: Invalid credentials or configuration
+2025-03-28 15:25:03,054 - __main__ - ERROR - Detailed Authentication Error: Authentication failed: Invalid credentials
+2025-03-28 15:25:03,055 - __main__ - ERROR - Traceback (most recent call last):
+  File "C:\Users\User\OneDrive\POS\CRUD_Kassa.py", line 57, in _debug_authentication
+    raise ValueError("Authentication failed: Invalid credentials")
+ValueError: Authentication failed: Invalid credentials
+
+2025-03-28 15:25:03,056 - __main__ - DEBUG - Attempting authentication:
+2025-03-28 15:25:03,056 - __main__ - DEBUG - URL: http://localhost:8069
+2025-03-28 15:25:03,057 - __main__ - DEBUG - Database: postgres
+2025-03-28 15:25:03,057 - __main__ - DEBUG - Username: admin
+2025-03-28 15:25:03,086 - __main__ - DEBUG - Server Version Info: {'server_version': '17.0-20250320', 'server_version_info': [17, 0, 0, 'final', 0, ''], 'server_serie': '17.0', 'protocol_version': 1}
+2025-03-28 15:25:03,624 - __main__ - ERROR - XML-RPC Fault: 1 - Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/odoo/addons/base/controllers/rpc.py", line 151, in xmlrpc_2
+    response = self._xmlrpc(service)
+  File "/usr/lib/python3/dist-packages/odoo/addons/base/controllers/rpc.py", line 127, in _xmlrpc
+    result = dispatch_rpc(service, method, params)
+  File "/usr/lib/python3/dist-packages/odoo/http.py", line 389, in dispatch_rpc
+    return dispatch(method, params)
+  File "/usr/lib/python3/dist-packages/odoo/service/common.py", line 56, in dispatch
+    return g[exp_method_name](*params)
+  File "/usr/lib/python3/dist-packages/odoo/service/common.py", line 25, in exp_authenticate
+    res_users = odoo.registry(db)['res.users']
+  File "/usr/lib/python3/dist-packages/odoo/modules/registry.py", line 209, in __getitem__
+    return self.models[model_name]
+KeyError: 'res.users'
+
+2025-03-28 15:25:03,626 - __main__ - DEBUG - Attempting authentication:
+2025-03-28 15:25:03,626 - __main__ - DEBUG - URL: http://localhost:8069
+2025-03-28 15:25:03,626 - __main__ - DEBUG - Database: postgres
+2025-03-28 15:25:03,626 - __main__ - DEBUG - Username: admin
+2025-03-28 15:25:03,659 - __main__ - DEBUG - Server Version Info: {'server_version': '17.0-20250320', 'server_version_info': [17, 0, 0, 'final', 0, ''], 'server_serie': '17.0', 'protocol_version': 1}
+2025-03-28 15:25:03,692 - __main__ - ERROR - XML-RPC Fault: 1 - Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/odoo/addons/base/controllers/rpc.py", line 151, in xmlrpc_2
+    response = self._xmlrpc(service)
+  File "/usr/lib/python3/dist-packages/odoo/addons/base/controllers/rpc.py", line 127, in _xmlrpc
+    result = dispatch_rpc(service, method, params)
+  File "/usr/lib/python3/dist-packages/odoo/http.py", line 389, in dispatch_rpc
+    return dispatch(method, params)
+  File "/usr/lib/python3/dist-packages/odoo/service/common.py", line 56, in dispatch
+    return g[exp_method_name](*params)
+  File "/usr/lib/python3/dist-packages/odoo/service/common.py", line 25, in exp_authenticate
+    res_users = odoo.registry(db)['res.users']
+  File "/usr/lib/python3/dist-packages/odoo/modules/registry.py", line 209, in __getitem__
+    return self.models[model_name]
+KeyError: 'res.users'
+
+2025-03-28 15:25:03,693 - __main__ - DEBUG - Attempting authentication:
+2025-03-28 15:25:03,694 - __main__ - DEBUG - URL: http://localhost:8069
+2025-03-28 15:25:03,694 - __main__ - DEBUG - Database: postgres
+2025-03-28 15:25:03,694 - __main__ - DEBUG - Username: odoo
+2025-03-28 15:25:03,730 - __main__ - DEBUG - Server Version Info: {'server_version': '17.0-20250320', 'server_version_info': [17, 0, 0, 'final', 0, ''], 'server_serie': '17.0', 'protocol_version': 1}
+2025-03-28 15:25:03,763 - __main__ - ERROR - XML-RPC Fault: 1 - Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/odoo/addons/base/controllers/rpc.py", line 151, in xmlrpc_2
+    response = self._xmlrpc(service)
+  File "/usr/lib/python3/dist-packages/odoo/addons/base/controllers/rpc.py", line 127, in _xmlrpc
+    result = dispatch_rpc(service, method, params)
+  File "/usr/lib/python3/dist-packages/odoo/http.py", line 389, in dispatch_rpc
+    return dispatch(method, params)
+  File "/usr/lib/python3/dist-packages/odoo/service/common.py", line 56, in dispatch
+    return g[exp_method_name](*params)
+  File "/usr/lib/python3/dist-packages/odoo/service/common.py", line 25, in exp_authenticate
+    res_users = odoo.registry(db)['res.users']
+  File "/usr/lib/python3/dist-packages/odoo/modules/registry.py", line 209, in __getitem__
+    return self.models[model_name]
+KeyError: 'res.users'
+
+2025-03-28 15:25:03,764 - __main__ - DEBUG - Attempting authentication:
+2025-03-28 15:25:03,765 - __main__ - DEBUG - URL: http://localhost:8069
+2025-03-28 15:25:03,765 - __main__ - DEBUG - Database: postgres
+2025-03-28 15:25:03,765 - __main__ - DEBUG - Username: odoo
+2025-03-28 15:25:03,841 - __main__ - DEBUG - Server Version Info: {'server_version': '17.0-20250320', 'server_version_info': [17, 0, 0, 'final', 0, ''], 'server_serie': '17.0', 'protocol_version': 1}
+2025-03-28 15:25:03,875 - __main__ - ERROR - XML-RPC Fault: 1 - Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/odoo/addons/base/controllers/rpc.py", line 151, in xmlrpc_2
+    response = self._xmlrpc(service)
+  File "/usr/lib/python3/dist-packages/odoo/addons/base/controllers/rpc.py", line 127, in _xmlrpc
+    result = dispatch_rpc(service, method, params)
+  File "/usr/lib/python3/dist-packages/odoo/http.py", line 389, in dispatch_rpc
+    return dispatch(method, params)
+  File "/usr/lib/python3/dist-packages/odoo/service/common.py", line 56, in dispatch
+    return g[exp_method_name](*params)
+  File "/usr/lib/python3/dist-packages/odoo/service/common.py", line 25, in exp_authenticate
+    res_users = odoo.registry(db)['res.users']
+  File "/usr/lib/python3/dist-packages/odoo/modules/registry.py", line 209, in __getitem__
+    return self.models[model_name]
+KeyError: 'res.users'
+
+2025-03-28 15:34:13,638 - __main__ - DEBUG - Attempting authentication:
+2025-03-28 15:34:13,638 - __main__ - DEBUG - URL: http://localhost:8069
+2025-03-28 15:34:13,638 - __main__ - DEBUG - Database: odoo
+2025-03-28 15:34:13,639 - __main__ - DEBUG - Username: admin
+2025-03-28 15:34:13,693 - __main__ - DEBUG - Server Version Info: {'server_version': '17.0-20250320', 'server_version_info': [17, 0, 0, 'final', 0, ''], 'server_serie': '17.0', 'protocol_version': 1}
+2025-03-28 15:34:13,786 - __main__ - ERROR - Authentication failed: Invalid credentials or configuration
+2025-03-28 15:34:13,787 - __main__ - ERROR - Detailed Authentication Error: Authentication failed: Invalid credentials
+2025-03-28 15:34:13,789 - __main__ - ERROR - Traceback (most recent call last):
+  File "C:\Users\User\OneDrive\POS\CRUD_Kassa.py", line 57, in _debug_authentication
+    raise ValueError("Authentication failed: Invalid credentials")
+ValueError: Authentication failed: Invalid credentials
+
+2025-03-28 15:34:13,790 - __main__ - DEBUG - Attempting authentication:
+2025-03-28 15:34:13,791 - __main__ - DEBUG - URL: http://localhost:8069
+2025-03-28 15:34:13,791 - __main__ - DEBUG - Database: odoo
+2025-03-28 15:34:13,792 - __main__ - DEBUG - Username: admin
+2025-03-28 15:34:13,833 - __main__ - DEBUG - Server Version Info: {'server_version': '17.0-20250320', 'server_version_info': [17, 0, 0, 'final', 0, ''], 'server_serie': '17.0', 'protocol_version': 1}
+2025-03-28 15:34:13,872 - __main__ - ERROR - Authentication failed: Invalid credentials or configuration
+2025-03-28 15:34:13,872 - __main__ - ERROR - Detailed Authentication Error: Authentication failed: Invalid credentials
+2025-03-28 15:34:13,873 - __main__ - ERROR - Traceback (most recent call last):
+  File "C:\Users\User\OneDrive\POS\CRUD_Kassa.py", line 57, in _debug_authentication
+    raise ValueError("Authentication failed: Invalid credentials")
+ValueError: Authentication failed: Invalid credentials
+
+2025-03-28 15:34:13,874 - __main__ - DEBUG - Attempting authentication:
+2025-03-28 15:34:13,874 - __main__ - DEBUG - URL: http://localhost:8069
+2025-03-28 15:34:13,875 - __main__ - DEBUG - Database: odoo
+2025-03-28 15:34:13,876 - __main__ - DEBUG - Username: odoo
+2025-03-28 15:34:13,908 - __main__ - DEBUG - Server Version Info: {'server_version': '17.0-20250320', 'server_version_info': [17, 0, 0, 'final', 0, ''], 'server_serie': '17.0', 'protocol_version': 1}
+2025-03-28 15:34:13,942 - __main__ - ERROR - Authentication failed: Invalid credentials or configuration
+2025-03-28 15:34:13,943 - __main__ - ERROR - Detailed Authentication Error: Authentication failed: Invalid credentials
+2025-03-28 15:34:13,943 - __main__ - ERROR - Traceback (most recent call last):
+  File "C:\Users\User\OneDrive\POS\CRUD_Kassa.py", line 57, in _debug_authentication
+    raise ValueError("Authentication failed: Invalid credentials")
+ValueError: Authentication failed: Invalid credentials
+
+2025-03-28 15:34:13,944 - __main__ - DEBUG - Attempting authentication:
+2025-03-28 15:34:13,945 - __main__ - DEBUG - URL: http://localhost:8069
+2025-03-28 15:34:13,945 - __main__ - DEBUG - Database: odoo
+2025-03-28 15:34:13,946 - __main__ - DEBUG - Username: odoo
+2025-03-28 15:34:13,979 - __main__ - DEBUG - Server Version Info: {'server_version': '17.0-20250320', 'server_version_info': [17, 0, 0, 'final', 0, ''], 'server_serie': '17.0', 'protocol_version': 1}
+2025-03-28 15:34:14,011 - __main__ - ERROR - Authentication failed: Invalid credentials or configuration
+2025-03-28 15:34:14,012 - __main__ - ERROR - Detailed Authentication Error: Authentication failed: Invalid credentials
+2025-03-28 15:34:14,012 - __main__ - ERROR - Traceback (most recent call last):
+  File "C:\Users\User\OneDrive\POS\CRUD_Kassa.py", line 57, in _debug_authentication
+    raise ValueError("Authentication failed: Invalid credentials")
+ValueError: Authentication failed: Invalid credentials
+
+2025-03-28 15:34:14,014 - __main__ - DEBUG - Attempting authentication:
+2025-03-28 15:34:14,014 - __main__ - DEBUG - URL: http://localhost:8069
+2025-03-28 15:34:14,014 - __main__ - DEBUG - Database: postgres
+2025-03-28 15:34:14,015 - __main__ - DEBUG - Username: admin
+2025-03-28 15:34:14,046 - __main__ - DEBUG - Server Version Info: {'server_version': '17.0-20250320', 'server_version_info': [17, 0, 0, 'final', 0, ''], 'server_serie': '17.0', 'protocol_version': 1}
+2025-03-28 15:34:14,078 - __main__ - ERROR - XML-RPC Fault: 1 - Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/odoo/addons/base/controllers/rpc.py", line 151, in xmlrpc_2
+    response = self._xmlrpc(service)
+  File "/usr/lib/python3/dist-packages/odoo/addons/base/controllers/rpc.py", line 127, in _xmlrpc
+    result = dispatch_rpc(service, method, params)
+  File "/usr/lib/python3/dist-packages/odoo/http.py", line 389, in dispatch_rpc
+    return dispatch(method, params)
+  File "/usr/lib/python3/dist-packages/odoo/service/common.py", line 56, in dispatch
+    return g[exp_method_name](*params)
+  File "/usr/lib/python3/dist-packages/odoo/service/common.py", line 25, in exp_authenticate
+    res_users = odoo.registry(db)['res.users']
+  File "/usr/lib/python3/dist-packages/odoo/modules/registry.py", line 209, in __getitem__
+    return self.models[model_name]
+KeyError: 'res.users'
+
+2025-03-28 15:34:14,080 - __main__ - DEBUG - Attempting authentication:
+2025-03-28 15:34:14,080 - __main__ - DEBUG - URL: http://localhost:8069
+2025-03-28 15:34:14,080 - __main__ - DEBUG - Database: postgres
+2025-03-28 15:34:14,081 - __main__ - DEBUG - Username: admin
+2025-03-28 15:34:14,118 - __main__ - DEBUG - Server Version Info: {'server_version': '17.0-20250320', 'server_version_info': [17, 0, 0, 'final', 0, ''], 'server_serie': '17.0', 'protocol_version': 1}
+2025-03-28 15:34:14,151 - __main__ - ERROR - XML-RPC Fault: 1 - Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/odoo/addons/base/controllers/rpc.py", line 151, in xmlrpc_2
+    response = self._xmlrpc(service)
+  File "/usr/lib/python3/dist-packages/odoo/addons/base/controllers/rpc.py", line 127, in _xmlrpc
+    result = dispatch_rpc(service, method, params)
+  File "/usr/lib/python3/dist-packages/odoo/http.py", line 389, in dispatch_rpc
+    return dispatch(method, params)
+  File "/usr/lib/python3/dist-packages/odoo/service/common.py", line 56, in dispatch
+    return g[exp_method_name](*params)
+  File "/usr/lib/python3/dist-packages/odoo/service/common.py", line 25, in exp_authenticate
+    res_users = odoo.registry(db)['res.users']
+  File "/usr/lib/python3/dist-packages/odoo/modules/registry.py", line 209, in __getitem__
+    return self.models[model_name]
+KeyError: 'res.users'
+
+2025-03-28 15:34:14,153 - __main__ - DEBUG - Attempting authentication:
+2025-03-28 15:34:14,153 - __main__ - DEBUG - URL: http://localhost:8069
+2025-03-28 15:34:14,153 - __main__ - DEBUG - Database: postgres
+2025-03-28 15:34:14,153 - __main__ - DEBUG - Username: odoo
+2025-03-28 15:34:14,191 - __main__ - DEBUG - Server Version Info: {'server_version': '17.0-20250320', 'server_version_info': [17, 0, 0, 'final', 0, ''], 'server_serie': '17.0', 'protocol_version': 1}
+2025-03-28 15:34:14,221 - __main__ - ERROR - XML-RPC Fault: 1 - Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/odoo/addons/base/controllers/rpc.py", line 151, in xmlrpc_2
+    response = self._xmlrpc(service)
+  File "/usr/lib/python3/dist-packages/odoo/addons/base/controllers/rpc.py", line 127, in _xmlrpc
+    result = dispatch_rpc(service, method, params)
+  File "/usr/lib/python3/dist-packages/odoo/http.py", line 389, in dispatch_rpc
+    return dispatch(method, params)
+  File "/usr/lib/python3/dist-packages/odoo/service/common.py", line 56, in dispatch
+    return g[exp_method_name](*params)
+  File "/usr/lib/python3/dist-packages/odoo/service/common.py", line 25, in exp_authenticate
+    res_users = odoo.registry(db)['res.users']
+  File "/usr/lib/python3/dist-packages/odoo/modules/registry.py", line 209, in __getitem__
+    return self.models[model_name]
+KeyError: 'res.users'
+
+2025-03-28 15:34:14,224 - __main__ - DEBUG - Attempting authentication:
+2025-03-28 15:34:14,224 - __main__ - DEBUG - URL: http://localhost:8069
+2025-03-28 15:34:14,224 - __main__ - DEBUG - Database: postgres
+2025-03-28 15:34:14,224 - __main__ - DEBUG - Username: odoo
+2025-03-28 15:34:14,257 - __main__ - DEBUG - Server Version Info: {'server_version': '17.0-20250320', 'server_version_info': [17, 0, 0, 'final', 0, ''], 'server_serie': '17.0', 'protocol_version': 1}
+2025-03-28 15:34:14,291 - __main__ - ERROR - XML-RPC Fault: 1 - Traceback (most recent call last):
+  File "/usr/lib/python3/dist-packages/odoo/addons/base/controllers/rpc.py", line 151, in xmlrpc_2
+    response = self._xmlrpc(service)
+  File "/usr/lib/python3/dist-packages/odoo/addons/base/controllers/rpc.py", line 127, in _xmlrpc
+    result = dispatch_rpc(service, method, params)
+  File "/usr/lib/python3/dist-packages/odoo/http.py", line 389, in dispatch_rpc
+    return dispatch(method, params)
+  File "/usr/lib/python3/dist-packages/odoo/service/common.py", line 56, in dispatch
+    return g[exp_method_name](*params)
+  File "/usr/lib/python3/dist-packages/odoo/service/common.py", line 25, in exp_authenticate
+    res_users = odoo.registry(db)['res.users']
+  File "/usr/lib/python3/dist-packages/odoo/modules/registry.py", line 209, in __getitem__
+    return self.models[model_name]
+KeyError: 'res.users'
+

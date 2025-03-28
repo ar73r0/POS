@@ -1,65 +1,111 @@
-import pika
-import psycopg2
-import json
+import xmlrpc.client
+import logging
+import traceback
 
-# PostgreSQL database configuratie
-DB_CONFIG = {
-    "dbname": "postgres",
-    "user": "odoo",
-    "password": "odoo",
-    "host": "odoo-db",
-    "port": "5432"
-}
-
-# RabbitMQ configuratie
-RABBITMQ_HOST = "rabbitmq"
-QUEUE_NAME = "pos.user"
-ROUTING_KEY = "user.delete"
-
-# Functie om een gebruiker te verwijderen uit de database
-def delete_user(user_id):
-    try:
-        conn = psycopg2.connect(**DB_CONFIG)
-        cursor = conn.cursor()
+class OdooUserManager:
+    def __init__(self, url: str, db: str, username: str, password: str):
+        """
+        Initialize Odoo connection and authentication
         
-        # Controleer of gebruiker bestaat
-        cursor.execute("SELECT id FROM res_users WHERE id = %s", (user_id,))
-        if not cursor.fetchone():
-            print(f"Gebruiker met ID {user_id} bestaat niet.")
-            return False
+        :param url: Odoo server URL
+        :param db: Database name
+        :param username: Username for authentication
+        :param password: Password or API key
+        """
+        self.url = url
+        self.db = db
+        self.username = username
+        self.password = password
         
-        # Verwijder de gebruiker
-        cursor.execute("DELETE FROM res_users WHERE id = %s", (user_id,))
-        conn.commit()
-        cursor.close()
-        conn.close()
-        print(f"Gebruiker met ID {user_id} succesvol verwijderd.")
-        return True
-    except Exception as e:
-        print(f"Fout bij verwijderen van gebruiker: {e}")
-        return False
-
-# Functie om een RabbitMQ bericht te sturen
-def send_rabbitmq_message(user_id):
-    try:
-        connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
-        channel = connection.channel()
-        channel.queue_declare(queue=QUEUE_NAME, durable=True)
+        # Configure logging with console and file output
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.FileHandler('odoo_user_deletion.log'),
+                logging.StreamHandler()  # Add console output
+            ]
+        )
+        self.logger = logging.getLogger(__name__)
         
-        message = json.dumps({"user_id": user_id, "action": "delete"})
-        channel.basic_publish(exchange='', routing_key=ROUTING_KEY, body=message,
-                              properties=pika.BasicProperties(delivery_mode=2))
-        print(f"Verwijderingsbericht gestuurd naar RabbitMQ: {message}")
-        connection.close()
-    except Exception as e:
-        print(f"Fout bij versturen van RabbitMQ bericht: {e}")
+        # Authenticate and establish connection
+        self.common = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/common")
+        self.models = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/object")
+        
+        # Detailed authentication debugging
+        self._debug_authentication()
 
-# Hoofdfunctie om gebruiker te verwijderen en bericht te versturen
-def remove_user(user_id):
-    if delete_user(user_id):
-        send_rabbitmq_message(user_id)
+    def _debug_authentication(self):
+        """
+        Provide detailed debugging for authentication
+        """
+        try:
+            self.logger.debug(f"Attempting authentication:")
+            self.logger.debug(f"URL: {self.url}")
+            self.logger.debug(f"Database: {self.db}")
+            self.logger.debug(f"Username: {self.username}")
+            
+            # Test connection to common endpoint
+            server_info = self.common.version()
+            self.logger.debug(f"Server Version Info: {server_info}")
+            
+            # Attempt authentication
+            self.uid = self.common.authenticate(self.db, self.username, self.password, {})
+            
+            if not self.uid:
+                self.logger.error("Authentication failed: Invalid credentials or configuration")
+                raise ValueError("Authentication failed: Invalid credentials")
+            
+            self.logger.info(f"Successfully authenticated with UID: {self.uid}")
+        
+        except xmlrpc.client.Fault as fault:
+            self.logger.error(f"XML-RPC Fault: {fault.faultCode} - {fault.faultString}")
+            raise
+        except Exception as e:
+            self.logger.error(f"Detailed Authentication Error: {e}")
+            self.logger.error(traceback.format_exc())
+            raise
 
-# Test met een voorbeeld ID
+    def list_databases(self):
+        """
+        List available databases (debug method)
+        """
+        try:
+            databases = self.common.list()
+            self.logger.info(f"Available Databases: {databases}")
+            return databases
+        except Exception as e:
+            self.logger.error(f"Error listing databases: {e}")
+            return []
+
+def main():
+    # Configuration - Detailed debugging setup
+    URL = "http://localhost:8069"  # Odoo server URL
+    
+    # Try multiple potential database and username combinations
+    database_attempts = ['odoo', 'postgres']
+    username_attempts = ['admin', 'odoo']
+    password_attempts = ['admin', 'odoo']
+
+    for db in database_attempts:
+        for username in username_attempts:
+            for password in password_attempts:
+                try:
+                    print(f"\nTrying: DB={db}, Username={username}, Password={password}")
+                    
+                    # Initialize Odoo User Manager
+                    user_manager = OdooUserManager(URL, db, username, password)
+                    
+                    # List available databases as an additional check
+                    user_manager.list_databases()
+                    
+                    # If successful, you can proceed with further actions
+                    print("Successfully connected!")
+                    return
+                
+                except Exception as e:
+                    print(f"Connection attempt failed: {e}")
+                    continue
+
 if __name__ == "__main__":
-    test_user_id = 2  # Vervang dit door een echte user ID uit je database
-    remove_user(test_user_id)
+    main()
