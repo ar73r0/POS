@@ -17,7 +17,7 @@ xml = """
           <last_name>Akturk</last_name>
           <date_of_birth>1990-01-01</date_of_birth>
           <phone_number> +3212345678 </phone_number>
-          <title> title </title>
+          <title>Mr.</title>
           <email>osman@test.com</email>
           <password>Pasword123456!</password>
             
@@ -78,16 +78,20 @@ connection = pika.BlockingConnection(params)
 
 channel = connection.channel()
 
-exchange_name = 'user.register'
-routing_key = 'pos.user'
-queue_name = 'pos.user'
+exchange_main = 'user-management'
+routing_main = 'user.register'
+queue_main = 'pos.user'
 
 
-channel.exchange_declare(exchange=exchange_name, exchange_type="topic", durable=True)
 
-channel.basic_publish(exchange=exchange_name,
-                      routing_key=routing_key,
+channel.exchange_declare(exchange=exchange_main, exchange_type="direct", durable=True)
+channel.queue_declare(queue=queue_main, durable=True)
+channel.queue_bind(queue=queue_main, exchange=exchange_main, routing_key=routing_main)
+
+channel.basic_publish(exchange=exchange_main,
+                      routing_key=routing_main,
                       body=xml,
+                      properties=pika.BasicProperties(delivery_mode=2)
                       )
     
 

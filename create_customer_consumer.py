@@ -20,27 +20,43 @@ def main():
 
 
     common = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/common")
-
     uid = common.authenticate(db, USERNAME, PASSWORD, {})
-
     models = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/object")
 
 
 
 
     credentials = pika.PlainCredentials(config["RABBITMQ_USERNAME"], config["RABBITMQ_PASSWORD"])
-    
     params = pika.ConnectionParameters("localhost", 5672, config["RABBITMQ_VHOST"], credentials)
     connection = pika.BlockingConnection(params)
     channel = connection.channel()
 
-    exchange_name ='user.register'
-    routing_key = 'pos.user'
-    queue_name = 'pos.user'
 
-    channel.exchange_declare(exchange=exchange_name, exchange_type='topic', durable=True)
-    channel.queue_declare(queue=queue_name, durable=True)
-    channel.queue_bind(exchange=exchange_name, queue=queue_name, routing_key=routing_key)
+    exchange_main = 'user-management'
+    routing_key_main = 'user.register'
+    queue_main = 'pos.user'
+
+
+
+    channel.exchange_declare(exchange=exchange_main, exchange_type="direct", durable=True)
+    channel.queue_declare(queue=queue_main, durable=True)
+    channel.queue_bind(queue=queue_main, exchange=exchange_main, routing_key=routing_key_main)
+
+
+    exchange_monitoring = 'monitoring'
+    routing_key_monitoring_success = 'monitoring.success'
+    routing_key_monitoring_failure = 'monitoring.failure'
+    queue_monitoring='monitoring'
+
+
+
+
+    channel.exchange_declare(exchange=exchange_monitoring, exchange_type='direct', durable=True)
+    channel.queue_declare(queue=queue_monitoring, durable=True)
+    channel.queue_bind(exchange=exchange_monitoring, queue=queue_monitoring, routing_key=routing_key_monitoring_success)
+    channel.queue_bind(exchange=exchange_monitoring, queue=queue_monitoring, routing_key=routing_key_monitoring_failure)
+
+
 
 
     def get_country_id(country):
@@ -297,7 +313,7 @@ def main():
             "Åland Islands": "AX"
         }
 
-        country_code = country_name_to_code.get(country)
+        country_code = country_name_to_code.get(country.capitalize())
         
         country_id = None
 
@@ -308,11 +324,23 @@ def main():
                 [[['code', '=', country_code]]],
                 {'fields': ['id'], 'limit': 1}
             )
+
             if result:
                 country_id = result[0]['id']
 
         return country_id
 
+    def get_title_id(title):
+        result = models.execute_kw(
+            db, uid, PASSWORD,
+            'res.partner.title', 'search_read',
+            [[["shortcut", "=", title]]],
+            {'fields': ['id'], 'limit': 1}
+        )
+
+        if result:
+            return result[0]['id']
+        return None
 
     def get_or_create_company_id(models, db, uid, password, company_data):
         domain = [['name', '=', company_data['name']], ['is_company', '=', True]]
@@ -336,14 +364,20 @@ def main():
         )
 
 
+
+
+        
+
+   
+
     def parse_attendify_user(xml_data):
     
         try:
             parsed = xmltodict.parse(xml_data)
             
             
-            #operation = parsed["attendify"]["info"]["operation"].strip().lower()
-            #sender = parsed["attendify"]["info"]["sender"]
+            operation = parsed["attendify"]["info"]["operation"].strip().lower()
+            sender = parsed["attendify"]["info"]["sender"]
 
             user_data = parsed["attendify"]["user"]
             adress = user_data["address"]
@@ -355,6 +389,7 @@ def main():
             zip = adress["postal_code"]
             country = adress["country"].strip().title()
             country_id = get_country_id(country)
+            title_id = get_title_id(user_data["title"])
             
 
 
@@ -435,33 +470,88 @@ def main():
                 "customer_rank": 1,
                 "is_company": False,
                 "company_type": "person",
+                "title" : get_title_id(user_data["title"])
+                
             }
 
 
 
             
 
-            return odoo_user, invoice_address, company_data
+            return odoo_user, invoice_address, company_data, operation, sender
         except Exception as e:
             print(f"XML parse error: {e}")
-            return {}, None, None
+            return {}, None, None, None, None
 
 
 
 
     def customer_callback(ch, method, properties, body):
-       
-        if uid:
-            odoo_user, invoice_address, company_data = parse_attendify_user(body.decode())
+   
+
+        try:
+            odoo_user, invoice_address, company_data, operation, sender = parse_attendify_user(body.decode())
+            operation = operation.lower()
+
+            if (
+                (method.routing_key == "user.register" and operation != "create") or 
+                (method.routing_key == "user.update" and operation != "update") or 
+                (method.routing_key == "user.delete" and operation != "delete")
+                ):
+                print("routing_key does not match operation information")
+
+                failure_xml = """
+                <attendify>
+                    <info>
+                        <sender>KASSA</sender>
+                        <operation>{operation}</operation>
+                        <monitoring>{method.routing_key}</monitoring>
+                        <reason>Operation information does not match routing_key</reason>
+                    </info>
+                </attendify>
+                """
+                channel.basic_publish(
+                    exchange=exchange_monitoring,
+                    routing_key=routing_key_monitoring_failure,
+                    body=failure_xml
+                )
+
+                return
+
+
+            existing_user = models.execute_kw(
+                db, uid, PASSWORD,
+                'res.partner', 'search_read',
+                [[['ref', '=', odoo_user['ref']]]],
+                {'fields': ['id'], 'limit': 1}
+            )
+
+            if existing_user:
+                print(f"User already exists with ID: {existing_user[0]['id']}")
+                failure_xml = """
+                <attendify>
+                    <info>
+                        <sender>KASSA</sender>
+                        <operation>create</operation>
+                        <monitoring>user.register.failure</monitoring>
+                        <reason>User already exists</reason>
+                    </info>
+                </attendify>
+                """
+                channel.basic_publish(
+                    exchange=exchange_monitoring,
+                    routing_key=routing_key_monitoring_failure,
+                    body=failure_xml
+                )
+
+                return
 
             if company_data:
                 company_id = get_or_create_company_id(models, db, uid, PASSWORD, company_data)
                 odoo_user["parent_id"] = company_id
                 odoo_user["company_type"] = "person"
                 odoo_user["is_company"] = False
-            else:
-                odoo_user["company_type"] = "person"
-                odoo_user["is_company"] = False
+            
             
             new_partner_id = models.execute_kw(
                 db, uid, PASSWORD,  
@@ -481,8 +571,48 @@ def main():
                 print(f"Invoice address ID: {invoice_id}")
 
 
+            success_xml = """
+            <attendify>
+                <info>
+                    <sender>KASSA</sender>
+                    <operation>create</operation>
+                    <monitoring>user.register.success</monitoring>
+                </info>
+            </attendify>
+            """
+            channel.basic_publish(
+                exchange=exchange_monitoring,
+                routing_key=routing_key_monitoring_success,
+                body=success_xml
+            )
 
-    channel.basic_consume(queue=queue_name, 
+            
+
+        except Exception as e:
+            print(f"Faut: {e}")
+
+            failure_xml = """
+            <attendify>
+                <info>
+                    <sender>KASSA</sender>
+                    <operation>create</operation>
+                    <monitoring>user.register.failure</monitoring>
+                    <reason>An error occurred while creating the user, please try again.</reason>
+                </info>
+            </attendify>
+            """
+            channel.basic_publish(
+                exchange=exchange_monitoring,
+                routing_key=routing_key_monitoring_failure,
+                body=failure_xml
+            )
+
+            
+
+
+
+
+    channel.basic_consume(queue=queue_main, 
                         on_message_callback=customer_callback,
                         auto_ack=True)
 
