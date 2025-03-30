@@ -4,22 +4,41 @@ from dotenv import dotenv_values
 # Load environment variables from .env
 config = dotenv_values()
 
-# Retrieve RabbitMQ settings from environment
-RABBITMQ_HOST = config.get("RABBITMQ_HOST", "localhost")
-RABBITMQ_PORT = int(config.get("RABBITMQ_PORT", "5672"))
-RABBITMQ_USERNAME = config.get("RABBITMQ_USERNAME", "guest")
-RABBITMQ_PASSWORD = config.get("RABBITMQ_PASSWORD", "guest")
-RABBITMQ_VHOST = config.get("RABBITMQ_VHOST", "/")
+# Build RabbitMQ connection parameters
+credentials = pika.PlainCredentials(
+    config["RABBITMQ_USERNAME"],
+    config["RABBITMQ_PASSWORD"]
+)
+params = pika.ConnectionParameters(
+    host="localhost",         
+    port=5672,
+    virtual_host=config["RABBITMQ_VHOST"],
+    credentials=credentials
+)
+
+# Establish connection & channel
+connection = pika.BlockingConnection(params)
+channel = connection.channel()
+
+# Define exchange, routing key, and queue
+exchange_main = 'user-management'
+routing_main = 'user.register'
+queue_main = 'pos.user'
+
+# Declare exchange, queue, and bind them
+channel.exchange_declare(exchange=exchange_main, exchange_type='direct', durable=True)
+channel.queue_declare(queue=queue_main, durable=True)
+channel.queue_bind(exchange=exchange_main, queue=queue_main, routing_key=routing_main)
 
 # Define the XML message
 xml_message = """
 <attendify>
     <info>
         <sender>crm</sender>
-        <operation>user.update</operation>
+        <operation>user.register</operation>
     </info>
     <user>
-        <first_name>Pieter</first_name>
+        <first_name>Lucas</first_name>
         <last_name>Huygen</last_name>
         <email>huygenlucas@gmail.com</email>
         <title>mr</title>
@@ -27,21 +46,13 @@ xml_message = """
 </attendify>
 """
 
-# Establish RabbitMQ connection
-credentials = pika.PlainCredentials(RABBITMQ_USERNAME, RABBITMQ_PASSWORD)
-params = pika.ConnectionParameters(
-    host=RABBITMQ_HOST,
-    port=RABBITMQ_PORT,
-    virtual_host=RABBITMQ_VHOST,
-    credentials=credentials
+# Publish the message
+channel.basic_publish(
+    exchange=exchange_main,
+    routing_key=routing_main,
+    body=xml_message
 )
-connection = pika.BlockingConnection(params)
-channel = connection.channel()
+print("Message sent to RabbitMQ.")
 
-# Declare the queue and publish the message
-queue_name = "pos.user"
-channel.queue_declare(queue=queue_name, durable=True)
-channel.basic_publish(exchange="", routing_key=queue_name, body=xml_message)
-
-print("XML bericht verstuurd naar RabbitMQ.")
+# Close connection
 connection.close()
