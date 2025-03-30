@@ -11,18 +11,18 @@ def send_delete_request(email):
     connection = pika.BlockingConnection(params)
     channel = connection.channel()
  
-    exchange_name = 'user.delete'
-    routing_key = 'pos.user'
+    exchange_name = 'user-management'
+queue_name = 'pos.user'
+routing_key = 'user.delete'
  
-    channel.exchange_declare(exchange=exchange_name, exchange_type='topic', durable=True)
+channel.exchange_declare(exchange=exchange_name, exchange_type='topic', durable=True)
  
-    message = json.dumps({"email": email})
-    channel.basic_publish(exchange=exchange_name, routing_key=routing_key, body=message)
+message = json.dumps({"email": email})
+channel.basic_publish(exchange=exchange_name, routing_key=routing_key, body=message)
  
-    print(f"Sent delete request for user: {email}")
-    connection.close()
+print(f"Sent delete request for user: {email}")
+connection.close()
  
-
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python delete_user_producer.py <user_email>")

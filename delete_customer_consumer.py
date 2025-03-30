@@ -20,9 +20,10 @@ params = pika.ConnectionParameters("localhost", 5672, config["RABBITMQ_VHOST"], 
 connection = pika.BlockingConnection(params)
 channel = connection.channel()
  
-exchange_name = 'user.delete'
+
+exchange_name = 'user-management'
 queue_name = 'pos.user'
-routing_key = 'pos.user'
+routing_key = 'user.delete'
  
 channel.exchange_declare(exchange=exchange_name, exchange_type='topic', durable=True)
 channel.queue_declare(queue=queue_name, durable=True)
