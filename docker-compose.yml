@@ -24,6 +24,11 @@ services:
       - "8069:8069"
     volumes:
       - "./odoo_web_data:/var/lib/odoo"
+      - "./custom-addons:/mnt/extra-addons"
+  db:
+    image: postgres:15
+    container_name: odoo-db
+    restart: unless-stopped
     environment:
       - HOST=db
       - USER=${POSTGRES_USER}
