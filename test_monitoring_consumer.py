@@ -33,6 +33,3 @@ channel.basic_consume(queue="monitoring", on_message_callback=monitoring_callbac
 print("Monitoring... ")
 channel.start_consuming()
 
-
-
-[{'id': 4, 'name': 'Doctor', 'shortcut': 'Dr.', 'display_name': 'Doctor', 'create_uid': [1, 'OdooBot'], 'create_date': '2025-03-26 01:41:53', 'write_uid': [1, 'OdooBot'], 'write_date': '2025-03-26 01:41:53'}, {'id': 1, 'name': 'Madam', 'shortcut': 'Mrs.', 'display_name': 'Madam', 'create_uid': [1, 'OdooBot'], 'create_date': '2025-03-26 01:41:53', 'write_uid': [1, 'OdooBot'], 'write_date': '2025-03-26 01:41:53'}, {'id': 2, 'name': 'Miss', 'shortcut': 'Miss', 'display_name': 'Miss', 'create_uid': [1, 'OdooBot'], 'create_date': '2025-03-26 01:41:53', 'write_uid': [1, 'OdooBot'], 'write_date': '2025-03-26 01:41:53'}, {'id': 3, 'name': 'Mister', 'shortcut': 'Mr.', 'display_name': 'Mister', 'create_uid': [1, 'OdooBot'], 'create_date': '2025-03-26 01:41:53', 'write_uid': [1, 'OdooBot'], 'write_date': '2025-03-26 01:41:53'}, {'id': 5, 'name': 'Professor', 'shortcut': 'Prof.', 'display_name': 'Professor', 'create_uid': [1, 'OdooBot'], 'create_date': '2025-03-26 01:41:53', 'write_uid': [1, 'OdooBot'], 'write_date': '2025-03-26 01:41:53'}]
