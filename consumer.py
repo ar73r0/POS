@@ -55,14 +55,8 @@ def delete_user(email):
     else:
         print(f"Customer {email} not found.")
  
-def get_title_id(title):
-    result = models.execute_kw(
-        db, uid, PASSWORD,
-        'res.partner.title', 'search_read',
-        [[['shortcut', '=', title]]],
-        {'fields': ['id'], 'limit': 1}
-    )
-    return result[0]['id'] if result else None
+
+
  
 def process_message(ch, method, properties, body):
     try:
@@ -114,44 +108,457 @@ def process_message(ch, method, properties, body):
                 print(f"No user found with email {email}.")
  
         elif routing_key == "user.register":
-            data = xmltodict.parse(body.decode("utf-8"))
-            user_data = data['attendify']['user']
-            name = f"{user_data['first_name']}_{user_data['last_name']}"
-            email = user_data.get("email")
-            phone = user_data.get("phone_number")
-            street = user_data['address']['street']
-            number = user_data['address']['number']
-            bus = user_data['address'].get('bus_number', '')
-            street2 = f"{number} Bus {bus}"
-            city = user_data['address']['city']
-            zip_code = user_data['address']['postal_code']
- 
+
+            def get_country_id(country):
+                    
+                country_name_to_code = {
+                        "Afghanistan": "AF",
+                        "Albania": "AL",
+                        "Algeria": "DZ",
+                        "American Samoa": "AS",
+                        "Andorra": "AD",
+                        "Angola": "AO",
+                        "Anguilla": "AI",
+                        "Antarctica": "AQ",
+                        "Antigua and Barbuda": "AG",
+                        "Argentina": "AR",
+                        "Armenia": "AM",
+                        "Aruba": "AW",
+                        "Australia": "AU",
+                        "Austria": "AT",
+                        "Azerbaijan": "AZ",
+                        "Bahamas": "BS",
+                        "Bahrain": "BH",
+                        "Bangladesh": "BD",
+                        "Barbados": "BB",
+                        "Belarus": "BY",
+                        "Belgium": "BE",
+                        "Belize": "BZ",
+                        "Benin": "BJ",
+                        "Bermuda": "BM",
+                        "Bhutan": "BT",
+                        "Bolivia": "BO",
+                        "Bonaire, Sint Eustatius and Saba": "BQ",
+                        "Bosnia and Herzegovina": "BA",
+                        "Botswana": "BW",
+                        "Bouvet Island": "BV",
+                        "Brazil": "BR",
+                        "British Indian Ocean Territory": "IO",
+                        "Brunei Darussalam": "BN",
+                        "Bulgaria": "BG",
+                        "Burkina Faso": "BF",
+                        "Burundi": "BI",
+                        "Cambodia": "KH",
+                        "Cameroon": "CM",
+                        "Canada": "CA",
+                        "Cape Verde": "CV",
+                        "Cayman Islands": "KY",
+                        "Central African Republic": "CF",
+                        "Chad": "TD",
+                        "Chile": "CL",
+                        "China": "CN",
+                        "Christmas Island": "CX",
+                        "Cocos (Keeling) Islands": "CC",
+                        "Colombia": "CO",
+                        "Comoros": "KM",
+                        "Congo": "CG",
+                        "Cook Islands": "CK",
+                        "Costa Rica": "CR",
+                        "Croatia": "HR",
+                        "Cuba": "CU",
+                        "Curaçao": "CW",
+                        "Cyprus": "CY",
+                        "Czech Republic": "CZ",
+                        "Côte d'Ivoire": "CI",
+                        "Democratic Republic of the Congo": "CD",
+                        "Denmark": "DK",
+                        "Djibouti": "DJ",
+                        "Dominica": "DM",
+                        "Dominican Republic": "DO",
+                        "Ecuador": "EC",
+                        "Egypt": "EG",
+                        "El Salvador": "SV",
+                        "Equatorial Guinea": "GQ",
+                        "Eritrea": "ER",
+                        "Estonia": "EE",
+                        "Eswatini": "SZ",
+                        "Ethiopia": "ET",
+                        "Falkland Islands": "FK",
+                        "Faroe Islands": "FO",
+                        "Fiji": "FJ",
+                        "Finland": "FI",
+                        "France": "FR",
+                        "French Guiana": "GF",
+                        "French Polynesia": "PF",
+                        "French Southern Territories": "TF",
+                        "Gabon": "GA",
+                        "Gambia": "GM",
+                        "Georgia": "GE",
+                        "Germany": "DE",
+                        "Ghana": "GH",
+                        "Gibraltar": "GI",
+                        "Greece": "GR",
+                        "Greenland": "GL",
+                        "Grenada": "GD",
+                        "Guadeloupe": "GP",
+                        "Guam": "GU",
+                        "Guatemala": "GT",
+                        "Guernsey": "GG",
+                        "Guinea": "GN",
+                        "Guinea-Bissau": "GW",
+                        "Guyana": "GY",
+                        "Haiti": "HT",
+                        "Heard Island and McDonald Islands": "HM",
+                        "Holy See (Vatican City State)": "VA",
+                        "Honduras": "HN",
+                        "Hong Kong": "HK",
+                        "Hungary": "HU",
+                        "Iceland": "IS",
+                        "India": "IN",
+                        "Indonesia": "ID",
+                        "Iran": "IR",
+                        "Iraq": "IQ",
+                        "Ireland": "IE",
+                        "Isle of Man": "IM",
+                        "Israel": "IL",
+                        "Italy": "IT",
+                        "Jamaica": "JM",
+                        "Japan": "JP",
+                        "Jersey": "JE",
+                        "Jordan": "JO",
+                        "Kazakhstan": "KZ",
+                        "Kenya": "KE",
+                        "Kiribati": "KI",
+                        "Kosovo": "XK",
+                        "Kuwait": "KW",
+                        "Kyrgyzstan": "KG",
+                        "Laos": "LA",
+                        "Latvia": "LV",
+                        "Lebanon": "LB",
+                        "Lesotho": "LS",
+                        "Liberia": "LR",
+                        "Libya": "LY",
+                        "Liechtenstein": "LI",
+                        "Lithuania": "LT",
+                        "Luxembourg": "LU",
+                        "Macau": "MO",
+                        "Madagascar": "MG",
+                        "Malawi": "MW",
+                        "Malaysia": "MY",
+                        "Maldives": "MV",
+                        "Mali": "ML",
+                        "Malta": "MT",
+                        "Marshall Islands": "MH",
+                        "Martinique": "MQ",
+                        "Mauritania": "MR",
+                        "Mauritius": "MU",
+                        "Mayotte": "YT",
+                        "Mexico": "MX",
+                        "Micronesia": "FM",
+                        "Moldova": "MD",
+                        "Monaco": "MC",
+                        "Mongolia": "MN",
+                        "Montenegro": "ME",
+                        "Montserrat": "MS",
+                        "Morocco": "MA",
+                        "Mozambique": "MZ",
+                        "Myanmar": "MM",
+                        "Namibia": "NA",
+                        "Nauru": "NR",
+                        "Nepal": "NP",
+                        "Netherlands": "NL",
+                        "New Caledonia": "NC",
+                        "New Zealand": "NZ",
+                        "Nicaragua": "NI",
+                        "Niger": "NE",
+                        "Nigeria": "NG",
+                        "Niue": "NU",
+                        "Norfolk Island": "NF",
+                        "North Korea": "KP",
+                        "North Macedonia": "MK",
+                        "Northern Mariana Islands": "MP",
+                        "Norway": "NO",
+                        "Oman": "OM",
+                        "Pakistan": "PK",
+                        "Palau": "PW",
+                        "Panama": "PA",
+                        "Papua New Guinea": "PG",
+                        "Paraguay": "PY",
+                        "Peru": "PE",
+                        "Philippines": "PH",
+                        "Pitcairn Islands": "PN",
+                        "Poland": "PL",
+                        "Portugal": "PT",
+                        "Puerto Rico": "PR",
+                        "Qatar": "QA",
+                        "Romania": "RO",
+                        "Russian Federation": "RU",
+                        "Rwanda": "RW",
+                        "Réunion": "RE",
+                        "Saint Barthélémy": "BL",
+                        "Saint Helena, Ascension and Tristan da Cunha": "SH",
+                        "Saint Kitts and Nevis": "KN",
+                        "Saint Lucia": "LC",
+                        "Saint Martin (French part)": "MF",
+                        "Saint Pierre and Miquelon": "PM",
+                        "Saint Vincent and the Grenadines": "VC",
+                        "Samoa": "WS",
+                        "San Marino": "SM",
+                        "Saudi Arabia": "SA",
+                        "Senegal": "SN",
+                        "Serbia": "RS",
+                        "Seychelles": "SC",
+                        "Sierra Leone": "SL",
+                        "Singapore": "SG",
+                        "Sint Maarten (Dutch part)": "SX",
+                        "Slovakia": "SK",
+                        "Slovenia": "SI",
+                        "Solomon Islands": "SB",
+                        "Somalia": "SO",
+                        "South Africa": "ZA",
+                        "South Georgia and the South Sandwich Islands": "GS",
+                        "South Korea": "KR",
+                        "South Sudan": "SS",
+                        "Spain": "ES",
+                        "Sri Lanka": "LK",
+                        "State of Palestine": "PS",
+                        "Sudan": "SD",
+                        "Suriname": "SR",
+                        "Svalbard and Jan Mayen": "SJ",
+                        "Sweden": "SE",
+                        "Switzerland": "CH",
+                        "Syria": "SY",
+                        "São Tomé and Príncipe": "ST",
+                        "Taiwan": "TW",
+                        "Tajikistan": "TJ",
+                        "Tanzania": "TZ",
+                        "Thailand": "TH",
+                        "Timor-Leste": "TL",
+                        "Togo": "TG",
+                        "Tokelau": "TK",
+                        "Tonga": "TO",
+                        "Trinidad and Tobago": "TT",
+                        "Tunisia": "TN",
+                        "Turkmenistan": "TM",
+                        "Turks and Caicos Islands": "TC",
+                        "Tuvalu": "TV",
+                        "Türkiye": "TR",
+                        "USA Minor Outlying Islands": "UM",
+                        "Uganda": "UG",
+                        "Ukraine": "UA",
+                        "United Arab Emirates": "AE",
+                        "United Kingdom": "GB",
+                        "United States": "US",
+                        "Uruguay": "UY",
+                        "Uzbekistan": "UZ",
+                        "Vanuatu": "VU",
+                        "Venezuela": "VE",
+                        "Vietnam": "VN",
+                        "Virgin Islands (British)": "VG",
+                        "Virgin Islands (USA)": "VI",
+                        "Wallis and Futuna": "WF",
+                        "Western Sahara": "EH",
+                        "Yemen": "YE",
+                        "Zambia": "ZM",
+                        "Zimbabwe": "ZW",
+                        "Åland Islands": "AX"
+                    }
+
+                country_code = country_name_to_code.get(country.capitalize())
+                    
+                country_id = None
+
+                if country_code:
+                        result = models.execute_kw(
+                            db, uid, PASSWORD,
+                            'res.country', 'search_read',
+                            [[['code', '=', country_code]]],
+                            {'fields': ['id'], 'limit': 1}
+                        )
+
+                        if result:
+                            country_id = result[0]['id']
+
+                return country_id
+
+            def get_title_id(title):
+                result = models.execute_kw(
+                                    db, uid, PASSWORD,
+                                    'res.partner.title', 'search_read',
+                                    [[["shortcut", "=", title]]],
+                                    {'fields': ['id'], 'limit': 1}
+                                )
+
+                if result:
+                                    return result[0]['id']
+                return None
+
+            def get_or_create_company_id(models, db, uid, password, company_data):
+                domain = [['name', '=', company_data['name']], ['is_company', '=', True]]
+                if company_data.get('vat'):
+                                    domain.append(['vat', '=', company_data['vat']])
+
+                existing = models.execute_kw(
+                                    db, uid, password,
+                                    'res.partner', 'search_read',
+                                    [domain],
+                                    {'fields': ['id'], 'limit': 1}
+                                )
+
+                if existing:
+                                    return existing[0]['id']
+
+                return models.execute_kw(
+                                    db, uid, password,
+                                    'res.partner', 'create',
+                                    [company_data]
+                                )
+
+
+
+
+
+            try:
+                
+                parsed = xmltodict.parse(body.decode('utf-8'))
+                    
+                    
+                operation = parsed["attendify"]["info"]["operation"].strip().lower()
+                sender = parsed["attendify"]["info"]["sender"]
+
+                user_data = parsed["attendify"]["user"]
+                adress = user_data["address"]
+                street = adress["street"]
+                number = adress["number"]
+                bus = adress.get("bus_number", "")
+                street2 = f"{number} Bus {bus}"
+                city = adress["city"]
+                zip = adress["postal_code"]
+                country = adress["country"].strip().title()
+                country_id = get_country_id(country)
+                title_id = get_title_id(user_data["title"])
+                email = user_data["email"]
+
+
+
+                invoice_data = user_data.get("payment_details", {}).get("facturation_address", {})
+                invoice_address = None
+
+                if invoice_data:
+                        inv_street = invoice_data["street"]
+                        inv_number = invoice_data["number"]
+                        inv_bus = invoice_data.get("company_bus_number", "")
+                        inv_street2 = f"{inv_number} Bus {inv_bus}".strip()
+                        inv_city = invoice_data["city"]
+                        inv_zip = invoice_data["postal_code"]
+                        inv_country = invoice_data["country"].strip().title()
+                        inv_country_id = get_country_id(inv_country)
+
+                        invoice_address = {
+                            "type": "invoice",
+                            "name": f"{user_data['first_name']}_{user_data['last_name']} (Invoice Address)",
+                            "email": email,
+                            "phone": user_data.get("phone_number"),
+                            "street": inv_street,
+                            "street2": inv_street2,
+                            "city": inv_city,
+                            "zip": inv_zip,
+                            "country_id": inv_country_id,
+                        }
+                        
+
+
+                from_company = user_data["from_company"].strip().lower()
+                    
+
+                if from_company == 'true':
+                        company_raw = user_data["company"]
+                        company_name = company_raw.get("name", "").strip()
+                        company_vat = company_raw.get("VAT_number", "").strip()
+                        company_address = company_raw.get("address", {})
+
+                        company_street = company_address.get("street", "").strip()
+                        company_number = company_address.get("number", "").strip()
+                        company_street2 = company_number
+                        company_city = company_address.get("city", "").strip()
+                        company_zip = company_address.get("postal_code", "").strip()
+                        company_country = company_address.get("country", "").strip().title()
+                        company_country_id = get_country_id(company_country)
+
+                        company_data = {
+                            "name": company_name,
+                            "vat": company_vat,
+                            "street": company_street,
+                            "street2": company_street2,
+                            "city": company_city,
+                            "zip": company_zip,
+                            "country_id": company_country_id,
+                            "is_company": True,
+                            "customer_rank": 1,
+                            "company_type": "company",
+                        }
+                        
+                else:
+                    company_data = None
+
+                    
+                odoo_user = {
+                        "ref": user_data["id"],
+                        "name": f"{user_data['first_name']}_{user_data['last_name']}",
+                        "email": user_data.get("email"),
+                        "phone": user_data.get("phone_number"),
+                        "street": street,
+                        "street2": street2,
+                        "city": city,
+                        "zip": zip,
+                        "country_id" : country_id,
+                        "customer_rank": 1,
+                        "is_company": False,
+                        "company_type": "person",
+                        "title" : title_id
+                    }
+
+            except Exception as e:
+                print(f"XML parse error: {e}")
+                    
+
             existing_user = models.execute_kw(
-                db, uid, PASSWORD,
-                'res.partner', 'search_read',
-                [[['email', '=', email]]],
-                {'fields': ['id'], 'limit': 1}
-            )
- 
+                    db, uid, PASSWORD,
+                    'res.partner', 'search_read',
+                    [[['ref', '=', odoo_user['ref']]]],
+                    {'fields': ['id'], 'limit': 1}
+                )
+
             if existing_user:
-                print(f"User already exists: {email}")
-            else:
-                new_user = {
-                    'name': name,
-                    'email': email,
-                    'phone': phone,
-                    'street': street,
-                    'street2': street2,
-                    'city': city,
-                    'zip': zip_code,
-                    'customer_rank': 1,
-                    'is_company': False,
-                    'company_type': 'person',
-                    'title': get_title_id(user_data.get('title', ''))
-                }
-                new_id = models.execute_kw(db, uid, PASSWORD, 'res.partner', 'create', [new_user])
-                print(f"Registered new user: {email} (ID {new_id})")
- 
+                    print(f"User {email} already exists with ID: {existing_user[0]['id']}")
+                    return
+
+
+            if company_data:
+                    company_id = get_or_create_company_id(models, db, uid, PASSWORD, company_data)
+                    odoo_user["parent_id"] = company_id
+                    odoo_user["company_type"] = "person"
+                    odoo_user["is_company"] = False
+                
+                
+            new_partner_id = models.execute_kw(
+                    db, uid, PASSWORD,  
+                    'res.partner', 'create',  
+                    [odoo_user]
+                )
+
+            print(f"Registered new user: {email} (ID {new_partner_id})")
+
+            if invoice_address:
+                    invoice_address["parent_id"] = new_partner_id
+                    invoice_id = models.execute_kw(
+                        db, uid, PASSWORD,
+                        'res.partner', 'create',
+                        [invoice_address]
+                    )
+                    print(f"Invoice address ID: {invoice_id}")
+
+
         else:
             print(f"Unknown routing key: {routing_key}")
  
@@ -162,4 +569,6 @@ def process_message(ch, method, properties, body):
 channel.basic_consume(queue=queue_main, on_message_callback=process_message, auto_ack=True)
 print("Waiting for user messages...")
 channel.start_consuming()
+ 
+
  
