@@ -51,7 +51,7 @@ def main():
 
 
 
-    channel.exchange_declare(exchange=exchange_monitoring, exchange_type='direct', durable=True)
+    channel.exchange_declare(exchange=exchange_monitoring, exchange_type='topic', durable=True)
     channel.queue_declare(queue=queue_monitoring, durable=True)
     channel.queue_bind(exchange=exchange_monitoring, queue=queue_monitoring, routing_key=routing_key_monitoring_success)
     channel.queue_bind(exchange=exchange_monitoring, queue=queue_monitoring, routing_key=routing_key_monitoring_failure)
