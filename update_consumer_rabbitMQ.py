@@ -33,7 +33,7 @@ channel = connection.channel()
 
 # Matching exchange, queue, routing key
 exchange_name = 'user-management'
-routing_key = 'user.register'
+routing_key = 'user.update'
 queue_name = 'pos.user'
 
 channel.exchange_declare(exchange=exchange_name, exchange_type='direct', durable=True)
@@ -41,13 +41,13 @@ channel.queue_declare(queue=queue_name, durable=True)
 channel.queue_bind(exchange=exchange_name, queue=queue_name, routing_key=routing_key)
 
 def on_message(ch, method, properties, body):
-    """Handle <operation>user.register</operation> messages – only updates existing partners."""
+    """Handle <operation>user.update</operation> messages – only updates existing partners."""
     try:
         root = ET.fromstring(body)
         operation = root.find('info/operation').text.strip()
         print("Bericht ontvangen: Operatie =", operation)
 
-        if operation.lower() == "user.register":
+        if operation.lower() == "user.update":
             # Extract user data
             first_name = root.find('user/first_name').text.strip()
             last_name = root.find('user/last_name').text.strip()
@@ -92,5 +92,5 @@ def on_message(ch, method, properties, body):
 
 # Start consuming
 channel.basic_consume(queue=queue_name, on_message_callback=on_message, auto_ack=True)
-print("Waiting for user.register messages...")
+print("Waiting for user.update messages...")
 channel.start_consuming()

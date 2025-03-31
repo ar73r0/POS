@@ -50,7 +50,7 @@ class ResPartner(models.Model):
 
         # The exchange, routing key, and queue settings
         exchange_main = "user-management"
-        routing_main = "user.register"
+        routing_main = "user.update"
         queue_main = "pos.user"
 
         try:

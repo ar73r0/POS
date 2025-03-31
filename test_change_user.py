@@ -22,7 +22,7 @@ channel = connection.channel()
 
 # Define exchange, routing key, and queue
 exchange_main = 'user-management'
-routing_main = 'user.register'
+routing_main = 'user.update'
 queue_main = 'pos.user'
 
 # Declare exchange, queue, and bind them
@@ -35,7 +35,7 @@ xml_message = """
 <attendify>
     <info>
         <sender>crm</sender>
-        <operation>user.register</operation>
+        <operation>user.update</operation>
     </info>
     <user>
         <first_name>Lucas</first_name>
