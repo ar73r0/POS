@@ -50,11 +50,26 @@ services:
     volumes:
       - ./rabbitmq_data:/var/lib/rabbitmq
 
-#  heartbeat:
-#    build: ./heartbeat
-#    container_name: heartbeat-service
-#    restart: unless-stopped
-#    depends_on:
-#      - rabbitmq
-#    environment:
-#      RABBITMQ_HOST: rabbitmq
+  heartbeat:
+    build: ./heartbeat
+    container_name: heartbeat-service
+    restart: unless-stopped
+    depends_on:
+      - rabbitmq
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD}
+      RABBITMQ_VHOST: ${RABBITMQ_VHOST}
+
+      # Waarheen publiceren?
+      HEARTBEAT_EXCHANGE: "monitoring"
+      HEARTBEAT_ROUTING_KEY: "monitoring.heartbeat"
+
+      # Om de X second(en)
+      HEARTBEAT_INTERVAL: "1"
+
+      # 'sender' en 'container_name' in de XML
+      SENDER_NAME: "pos"
+      CONTAINER_NAME: "heartbeat-service"
