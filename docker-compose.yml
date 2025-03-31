@@ -14,6 +14,8 @@ services:
       - "5432:5432"
 
   web:
+    build:
+      context: ./odoo
     image: odoo:17.0
     container_name: odoo-app
     restart: unless-stopped
@@ -24,7 +26,7 @@ services:
       - "8069:8069"
     volumes:
       - "./odoo_web_data:/var/lib/odoo"
-      - "./custom-addons:/mnt/extra-addons"
+      - ./odoo/addons/pos_custom:/mnt/extra-addons
     environment:
       - HOST=db
       - USER=${POSTGRES_USER}
