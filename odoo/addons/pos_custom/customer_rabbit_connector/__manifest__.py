@@ -4,7 +4,7 @@
     'depends': ['point_of_sale'],
     'author': 'Attendify',
     'category': 'Point of Sale',
-    'summary': 'Send POS customer updates to RabbitMQ',
+    'summary': 'Send POS customer updates/deletes/creates to RabbitMQ',
     'description': 'Sends res.partner (POS customer) updates as XML to RabbitMQ.',
     'data': [],
     'installable': True,
