@@ -3,6 +3,9 @@ import pika
 import xml.etree.ElementTree as ET
 import logging
 from dotenv import dotenv_values
+import bcrypt
+import random
+import string
 
 _logger = logging.getLogger(__name__)
 
@@ -25,6 +28,14 @@ class ResPartner(models.Model):
         first_name = name_parts[0] if name_parts else ''
         last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ''
 
+        characters = string.ascii_letters + string.digits + string.punctuation
+        random_password = ''.join(random.choices(characters, k=12))
+        salt = bcrypt.gensalt()
+        hashed = bcrypt.hashpw(random_password.encode('utf-8'), salt)
+
+
+        password  = hashed.decode('utf-8')
+
         # Build the XML message
         xml_message = f"""
 <attendify>
@@ -36,6 +47,7 @@ class ResPartner(models.Model):
         <first_name>{first_name}</first_name>
         <last_name>{last_name}</last_name>
         <email>{self.email}</email>
+        <password>{password}</password>
         <title>{self.title.name if self.title else ''}</title>
     </user>
 </attendify>
