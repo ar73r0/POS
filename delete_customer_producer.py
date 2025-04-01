@@ -25,9 +25,9 @@ def send_delete_request(email):
         </user>
     </attendify>
     """.strip()
- 
+ """
     channel.basic_publish(exchange=exchange_name, routing_key=routing_key, body=message)
-    print(f"Sent delete request for user: {email}")
+    print(f"Sent delete request for user: {email}")"""
     connection.close()
  
 if __name__ == "__main__":
