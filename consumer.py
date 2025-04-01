@@ -366,7 +366,7 @@ def process_message(ch, method, properties, body):
 
                 country_code = country_name_to_code.get(country.capitalize())
                     
-                country_id = None
+                
 
                 if country_code:
                         result = models.execute_kw(
@@ -379,6 +379,7 @@ def process_message(ch, method, properties, body):
                         if result:
                             country_id = result[0]['id']
 
+                
                 return country_id
 
             def get_title_id(title):
@@ -390,13 +391,13 @@ def process_message(ch, method, properties, body):
                                 )
 
                 if result:
-                                    return result[0]['id']
+                    return result[0]['id']
                 return None
 
             def get_or_create_company_id(models, db, uid, password, company_data):
                 domain = [['name', '=', company_data['name']], ['is_company', '=', True]]
                 if company_data.get('vat'):
-                                    domain.append(['vat', '=', company_data['vat']])
+                    domain.append(['vat', '=', company_data['vat']])
 
                 existing = models.execute_kw(
                                     db, uid, password,
@@ -406,7 +407,7 @@ def process_message(ch, method, properties, body):
                                 )
 
                 if existing:
-                                    return existing[0]['id']
+                    return existing[0]['id']
 
                 return models.execute_kw(
                                     db, uid, password,
@@ -427,17 +428,29 @@ def process_message(ch, method, properties, body):
                 sender = parsed["attendify"]["info"]["sender"]
 
                 user_data = parsed["attendify"]["user"]
-                adress = user_data["address"]
-                street = adress["street"]
-                number = adress["number"]
-                bus = adress.get("bus_number", "")
-                street2 = f"{number} Bus {bus}"
-                city = adress["city"]
-                zip = adress["postal_code"]
-                country = adress["country"].strip().title()
-                country_id = get_country_id(country)
-                title_id = get_title_id(user_data["title"])
+
+                
+            
+                address = user_data.get("address")
+
+                if address:
+                    
+                    street = address["street"]
+                    number = address["number"]
+                    bus = address.get("bus_number", "")
+                    street2 = f"{number} Bus {bus}"
+                    city = address["city"]
+                    zip = address["postal_code"]
+                    country = address["country"].strip().title()
+                    country_id = get_country_id(country)
+                
+
                 email = user_data["email"]
+
+                title = user_data["title"]
+
+                if title:
+                    title_id = get_title_id(title)
 
 
 
@@ -445,30 +458,31 @@ def process_message(ch, method, properties, body):
                 invoice_address = None
 
                 if invoice_data:
-                        inv_street = invoice_data["street"]
-                        inv_number = invoice_data["number"]
-                        inv_bus = invoice_data.get("company_bus_number", "")
-                        inv_street2 = f"{inv_number} Bus {inv_bus}".strip()
-                        inv_city = invoice_data["city"]
-                        inv_zip = invoice_data["postal_code"]
-                        inv_country = invoice_data["country"].strip().title()
-                        inv_country_id = get_country_id(inv_country)
+                    inv_street = invoice_data["street"]
+                    inv_number = invoice_data["number"]
+                    inv_bus = invoice_data.get("company_bus_number", "")
+                    inv_street2 = f"{inv_number} Bus {inv_bus}".strip()
+                    inv_city = invoice_data["city"]
+                    inv_zip = invoice_data["postal_code"]
+                    inv_country = invoice_data["country"].strip().title()
+                    inv_country_id = get_country_id(inv_country)
 
-                        invoice_address = {
-                            "type": "invoice",
-                            "name": f"{user_data['first_name']}_{user_data['last_name']} (Invoice Address)",
-                            "email": email,
-                            "phone": user_data.get("phone_number"),
-                            "street": inv_street,
-                            "street2": inv_street2,
-                            "city": inv_city,
-                            "zip": inv_zip,
-                            "country_id": inv_country_id,
+                    invoice_address = {
+                        "type": "invoice",
+                        "name": f"{user_data['first_name']}_{user_data['last_name']} (Invoice Address)",
+                        "email": email,
+                        "phone": user_data.get("phone_number"),
+                        "street": inv_street,
+                        "street2": inv_street2,
+                        "city": inv_city,
+                        "zip": inv_zip,
+                        "country_id": inv_country_id
                         }
                         
 
 
-                from_company = user_data["from_company"].strip().lower()
+                from_company = user_data.get("from_company", "false").strip().lower()
+                
                     
 
                 if from_company == 'true':
@@ -495,7 +509,7 @@ def process_message(ch, method, properties, body):
                             "country_id": company_country_id,
                             "is_company": True,
                             "customer_rank": 1,
-                            "company_type": "company",
+                            "company_type": "company"
                         }
                         
                 else:
@@ -503,20 +517,33 @@ def process_message(ch, method, properties, body):
 
                     
                 odoo_user = {
-                        "ref": user_data["id"],
                         "name": f"{user_data['first_name']}_{user_data['last_name']}",
                         "email": user_data.get("email"),
-                        "phone": user_data.get("phone_number"),
-                        "street": street,
-                        "street2": street2,
-                        "city": city,
-                        "zip": zip,
-                        "country_id" : country_id,
                         "customer_rank": 1,
                         "is_company": False,
-                        "company_type": "person",
-                        "title" : title_id
+                        "company_type": "person"
                     }
+                
+                if address:
+                    odoo_user["street"] = street
+                    odoo_user["street2"] = street2
+                    odoo_user["city"] = city
+                    odoo_user["zip"] = zip
+                    odoo_user["country_id"] = country_id
+                
+
+               
+                
+                if user_data.get("phone_number"):
+                      odoo_user["phone"] = user_data["phone_number"]
+                
+                if title:
+                      odoo_user["title"] = title_id
+
+                if user_data.get("id"):
+                      odoo_user["ref"] = user_data["id"]
+                    
+                
 
             except Exception as e:
                 print(f"XML parse error: {e}")
@@ -525,7 +552,7 @@ def process_message(ch, method, properties, body):
             existing_user = models.execute_kw(
                     db, uid, PASSWORD,
                     'res.partner', 'search_read',
-                    [[['ref', '=', odoo_user['ref']]]],
+                    [[['email', '=', odoo_user['email']]]],
                     {'fields': ['id'], 'limit': 1}
                 )
 

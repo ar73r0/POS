@@ -380,22 +380,25 @@ def main():
             sender = parsed["attendify"]["info"]["sender"]
 
             user_data = parsed["attendify"]["user"]
-            adress = user_data["address"]
-            street = adress["street"]
-            number = adress["number"]
-            bus = adress.get("bus_number", "")
-            street2 = f"{number} Bus {bus}"
-            city = adress["city"]
-            zip = adress["postal_code"]
-            country = adress["country"].strip().title()
-            country_id = get_country_id(country)
-            title_id = get_title_id(user_data["title"])
             
+            title = user_data["title"]
 
+            if title:
+                title_id = get_title_id(title)
 
-           
+            address = user_data["address"]
 
+            if address:
+                street = address["street"]
+                number = address["number"]
+                bus = address.get("bus_number", "")
+                street2 = f"{number} Bus {bus}"
+                city = address["city"]
+                zip = address["postal_code"]
+                country = address["country"].strip().title()
+                country_id = get_country_id(country)
 
+            
             invoice_data = user_data.get("payment_details", {}).get("facturation_address", {})
             invoice_address = None
 
@@ -421,26 +424,26 @@ def main():
                     "country_id": inv_country_id,
                 }
                 
+            from_company = user_data.get("from_company", "false").strip().lower()
+            company_data = None
 
-
-            from_company = user_data["from_company"].strip().lower()
-            
+           
 
             if from_company == 'true':
-                company_raw = user_data["company"]
-                company_name = company_raw.get("name", "").strip()
-                company_vat = company_raw.get("VAT_number", "").strip()
-                company_address = company_raw.get("address", {})
+                    company_raw = user_data["company"]
+                    company_name = company_raw.get("name", "").strip()
+                    company_vat = company_raw.get("VAT_number", "").strip()
+                    company_address = company_raw.get("address", {})
 
-                company_street = company_address.get("street", "").strip()
-                company_number = company_address.get("number", "").strip()
-                company_street2 = company_number
-                company_city = company_address.get("city", "").strip()
-                company_zip = company_address.get("postal_code", "").strip()
-                company_country = company_address.get("country", "").strip().title()
-                company_country_id = get_country_id(company_country)
+                    company_street = company_address.get("street", "").strip()
+                    company_number = company_address.get("number", "").strip()
+                    company_street2 = company_number
+                    company_city = company_address.get("city", "").strip()
+                    company_zip = company_address.get("postal_code", "").strip()
+                    company_country = company_address.get("country", "").strip().title()
+                    company_country_id = get_country_id(company_country)
 
-                company_data = {
+                    company_data = {
                     "name": company_name,
                     "vat": company_vat,
                     "street": company_street,
@@ -470,7 +473,7 @@ def main():
                 "customer_rank": 1,
                 "is_company": False,
                 "company_type": "person",
-                "title" : get_title_id(user_data["title"])
+                "title" : title_id
                 
             }
 

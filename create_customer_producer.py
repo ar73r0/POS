@@ -8,7 +8,7 @@ config = dotenv_values()
 xml = """
 <attendify>
       <info>
-          <sender>CRM</sender>
+          <sender>Kassa</sender>
           <operation>Create</operation>
       </info>
       <user>
@@ -68,7 +68,21 @@ xml = """
 """
 
 
-
+xml_min = """
+<attendify>
+    <info>
+        <sender>Kassa</sender>
+        <operation>create</operation>
+    </info>
+    <user>
+        <first_name>osman</first_name>
+        <last_name>akturk</last_name>
+        <email>osman@test.com</email>
+        <title>Mr.</title>
+        <password>Hashed password</password>
+    </user>
+</attendify>
+"""
 
 
 credentials = pika.PlainCredentials(config["RABBITMQ_USERNAME"], config["RABBITMQ_PASSWORD"])
@@ -90,7 +104,7 @@ channel.queue_bind(queue=queue_main, exchange=exchange_main, routing_key=routing
 
 channel.basic_publish(exchange=exchange_main,
                       routing_key=routing_main,
-                      body=xml,
+                      body=xml_min,
                       properties=pika.BasicProperties(delivery_mode=2)
                       )
     
