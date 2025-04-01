@@ -24,7 +24,7 @@ params = pika.ConnectionParameters(
 
 connection = pika.BlockingConnection(params)
 channel = connection.channel()
-
+"""
 # Declare the direct exchange
 channel.exchange_declare(exchange=exchange_name, exchange_type='direct', durable=True)
 
@@ -34,6 +34,7 @@ channel.queue_declare(queue=queue_name, durable=True)
 # Bind the queue to each routing key we care about
 for rk in routing_keys:
     channel.queue_bind(queue=queue_name, exchange=exchange_name, routing_key=rk)
+    """
 
 print(f"Listening on queue '{queue_name}' for routing keys {routing_keys}...")
 
@@ -46,7 +47,7 @@ def callback(ch, method, properties, body):
 channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
 
 try:
-    channel.start_consuming()
+    #channel.start_consuming()
 except KeyboardInterrupt:
     print("Listener stopped.")
     connection.close()
