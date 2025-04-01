@@ -35,11 +35,11 @@ channel = connection.channel()
 exchange_name = 'user-management'
 routing_key = 'user.update'
 queue_name = 'pos.user'
-
+"""
 channel.exchange_declare(exchange=exchange_name, exchange_type='direct', durable=True)
 channel.queue_declare(queue=queue_name, durable=True)
 channel.queue_bind(exchange=exchange_name, queue=queue_name, routing_key=routing_key)
-
+"""
 def on_message(ch, method, properties, body):
     """Handle <operation>user.update</operation> messages – only updates existing partners."""
     try:
@@ -89,8 +89,9 @@ def on_message(ch, method, properties, body):
             print("Operatie niet ondersteund:", operation)
     except Exception as e:
         print(f"Fout tijdens verwerking: {e}")
-
+"""
 # Start consuming
 channel.basic_consume(queue=queue_name, on_message_callback=on_message, auto_ack=True)
 print("Waiting for user.update messages...")
 channel.start_consuming()
+"""
