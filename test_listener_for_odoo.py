@@ -44,7 +44,7 @@ def callback(ch, method, properties, body):
     print(body.decode('utf-8'))
     print("===")
 
-channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
+#channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
 
 try:
     #channel.start_consuming()
