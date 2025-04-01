@@ -23,7 +23,8 @@ jobs:
         uses: docker/setup-buildx-action@v2
       - name: Build Docker image
         run: |
-          docker build -t my-odoo-pos -f odoo/Dockerfile odoo/
+          docker build -t my-odoo-pos -f odoo/Dockerfile .
+ 
       - name: Lint Dockerfile
         run: |
           docker run --rm -i hadolint/hadolint < Dockerfile
