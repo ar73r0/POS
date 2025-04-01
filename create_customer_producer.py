@@ -96,7 +96,7 @@ exchange_main = 'user-management'
 routing_main = 'user.register'
 queue_main = 'pos.user'
 
-
+"""
 
 channel.exchange_declare(exchange=exchange_main, exchange_type="direct", durable=True)
 channel.queue_declare(queue=queue_main, durable=True)
@@ -107,7 +107,7 @@ channel.basic_publish(exchange=exchange_main,
                       body=xml_min,
                       properties=pika.BasicProperties(delivery_mode=2)
                       )
-    
+    """
 
 print("Message Sented")
 
