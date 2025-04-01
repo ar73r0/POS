@@ -2,17 +2,17 @@ FROM odoo:17.0
 
 WORKDIR /opt/odoo
 
-# Kopieer je Odoo-addons
+# Extra modules en config
 COPY ./addons /mnt/extra-addons
-
-# Kopieer je .env
 COPY .env /opt/odoo/.env
-
-# Kopieer je config en requirements
 COPY ./config/odoo.conf /etc/odoo/odoo.conf
 COPY requirements.txt /opt/odoo/requirements.txt
 
-RUN pip3 install --no-cache-dir -r /opt/odoo/requirements.txt
+# Installeer vereisten één keer, globaal
+RUN pip3 install --no-cache-dir --upgrade -r /opt/odoo/requirements.txt
+
+# (optioneel maar veilig) Zet juiste PYTHONPATH
+ENV PYTHONPATH=/usr/local/lib/python3.10/site-packages
 
 EXPOSE 8069
 

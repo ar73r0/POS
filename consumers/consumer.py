@@ -19,29 +19,20 @@ uid = common.authenticate(db, USERNAME, PASSWORD, {})
 models = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/object")
  
 credentials = pika.PlainCredentials(config["RABBITMQ_USERNAME"], config["RABBITMQ_PASSWORD"])
-params = pika.ConnectionParameters(config["RABBITMQ_HOST"], 5672, config["RABBITMQ_VHOST"], credentials)
+params = pika.ConnectionParameters(config["RABBITMQ_HOST"], 30001, config["RABBITMQ_VHOST"], credentials)
 connection = pika.BlockingConnection(params)
 channel = connection.channel()
  
 exchange_main = 'user-management'
 queue_main = 'pos.user'
  
-channel.exchange_declare(exchange=exchange_main, exchange_type="direct", durable=True)
-channel.queue_declare(queue=queue_main, durable=True)
- 
-for rk in ['user.register', 'user.update', 'user.delete']:
-    channel.queue_bind(queue=queue_main, exchange=exchange_main, routing_key=rk)
  
 exchange_monitoring = 'monitoring'
 routing_key_monitoring_success = 'monitoring.success'
 routing_key_monitoring_failure = 'monitoring.failure'
 queue_monitoring = 'monitoring'
  
-channel.exchange_declare(exchange=exchange_monitoring, exchange_type='topic', durable=True)
-channel.queue_declare(queue=queue_monitoring, durable=True)
-channel.queue_bind(exchange=exchange_monitoring, queue=queue_monitoring, routing_key=routing_key_monitoring_success)
-channel.queue_bind(exchange=exchange_monitoring, queue=queue_monitoring, routing_key=routing_key_monitoring_failure)
- 
+
 def delete_user(email):
     partner_ids = models.execute_kw(
         db, uid, PASSWORD,
@@ -107,7 +98,7 @@ def process_message(ch, method, properties, body):
             else:
                 print(f"No user found with email {email}.")
  
-        elif routing_key == "user.register":
+        elif routing_key == "user.create":
 
             def get_country_id(country):
                     

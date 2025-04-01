@@ -67,7 +67,7 @@ class ResPartner(models.Model):
 
         # routing key mapping
         routing_key_map = {
-            'register': 'user.register',
+            'create': 'user.register',
             'update': 'user.update',
             'delete': 'user.delete'
         }
@@ -85,15 +85,6 @@ class ResPartner(models.Model):
             )
             connection = pika.BlockingConnection(params)
             channel = connection.channel()
-
-            # Declare the direct exchange
-            channel.exchange_declare(exchange=exchange_main, exchange_type='direct', durable=True)
-
-            # Declare the queue
-            channel.queue_declare(queue=queue_main, durable=True)
-
-            # Bind the queue
-            channel.queue_bind(exchange=exchange_main, queue=queue_main, routing_key=routing_key)
 
             # Publish the message
             channel.basic_publish(
@@ -114,7 +105,7 @@ class ResPartner(models.Model):
         # after creating, send user.register
         for record in records:
             _logger.debug("Triggering RabbitMQ register for partner ID %s", record.id)
-            record._send_to_rabbitmq('register')
+            record._send_to_rabbitmq('create')
         return records
 
     def write(self, vals):
