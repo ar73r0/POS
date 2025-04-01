@@ -19,12 +19,13 @@ jobs:
           test -d odoo || (echo "Error: 'odoo' directory not found!" && exit 1)
           test -f docker-compose.yml || (echo "Error: 'docker-compose.yml' not found!" && exit 1)
           test -f odoo/config/odoo.conf || (echo "Error: 'odoo.conf' not found in odoo/config/'!" && exit 1)
+          test -f odoo/requirements.txt || (echo "Error: 'requirements.txt' not found in odoo/!" && exit 1)
+          test -f .env || (echo "Error: '.env' file not found!" && exit 1)
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
       - name: Build Docker image
         run: |
           docker build -t my-odoo-pos -f odoo/Dockerfile .
- 
       - name: Lint Dockerfile
         run: |
           docker run --rm -i hadolint/hadolint < Dockerfile
