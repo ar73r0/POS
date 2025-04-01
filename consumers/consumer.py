@@ -25,7 +25,7 @@ channel = connection.channel()
  
 exchange_main = 'user-management'
 queue_main = 'pos.user'
- 
+ """
 channel.exchange_declare(exchange=exchange_main, exchange_type="direct", durable=True)
 channel.queue_declare(queue=queue_main, durable=True)
  
@@ -41,7 +41,7 @@ channel.exchange_declare(exchange=exchange_monitoring, exchange_type='topic', du
 channel.queue_declare(queue=queue_monitoring, durable=True)
 channel.queue_bind(exchange=exchange_monitoring, queue=queue_monitoring, routing_key=routing_key_monitoring_success)
 channel.queue_bind(exchange=exchange_monitoring, queue=queue_monitoring, routing_key=routing_key_monitoring_failure)
- 
+ """
 def delete_user(email):
     partner_ids = models.execute_kw(
         db, uid, PASSWORD,
@@ -592,10 +592,10 @@ def process_message(ch, method, properties, body):
     except Exception as e:
         print(f"Error processing message: {e}")
  
- 
+ """
 channel.basic_consume(queue=queue_main, on_message_callback=process_message, auto_ack=True)
 print("Waiting for user messages...")
 channel.start_consuming()
  
-
+"""
  
