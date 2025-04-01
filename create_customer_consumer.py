@@ -37,11 +37,11 @@ def main():
     queue_main = 'pos.user'
 
 
-
+"""
     channel.exchange_declare(exchange=exchange_main, exchange_type="direct", durable=True)
     channel.queue_declare(queue=queue_main, durable=True)
     channel.queue_bind(queue=queue_main, exchange=exchange_main, routing_key=routing_key_main)
-
+"""
 
     exchange_monitoring = 'monitoring'
     routing_key_monitoring_success = 'monitoring.success'
@@ -49,13 +49,13 @@ def main():
     queue_monitoring='monitoring'
 
 
-
+"""
 
     channel.exchange_declare(exchange=exchange_monitoring, exchange_type='topic', durable=True)
     channel.queue_declare(queue=queue_monitoring, durable=True)
     channel.queue_bind(exchange=exchange_monitoring, queue=queue_monitoring, routing_key=routing_key_monitoring_success)
     channel.queue_bind(exchange=exchange_monitoring, queue=queue_monitoring, routing_key=routing_key_monitoring_failure)
-
+"""
 
 
 
@@ -613,12 +613,12 @@ def main():
             
 
 
-
+"""
 
     channel.basic_consume(queue=queue_main, 
                         on_message_callback=customer_callback,
                         auto_ack=True)
-
+"""
     print("Waiting ...")
 
     channel.start_consuming()
