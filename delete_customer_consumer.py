@@ -24,11 +24,11 @@ channel = connection.channel()
 exchange_name = 'user-management'
 queue_name = 'pos.user'
 routing_key = 'user.delete'
- 
+ """
 channel.exchange_declare(exchange=exchange_name, exchange_type='topic', durable=True)
 channel.queue_declare(queue=queue_name, durable=True)
 channel.queue_bind(exchange=exchange_name, queue=queue_name, routing_key=routing_key)
- 
+ """
 def delete_user(email):
     partner_ids = models.execute_kw(
     db, uid, PASSWORD,
@@ -55,7 +55,7 @@ def callback(ch, method, properties, body):
             print("Invalid message format.")
     except Exception as e:
         print(f"Error processing message: {e}")
- 
+ """
 channel.basic_consume(queue=queue_name, on_message_callback=callback, auto_ack=True)
 print("Waiting for delete user requests...")
-channel.start_consuming()
+channel.start_consuming()"""
