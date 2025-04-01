@@ -9,7 +9,7 @@ from dotenv import dotenv_values
  
 config = dotenv_values()
  
-url = "http://localhost:8069/"
+url = f"http://{config['ODOO_HOST']}:8069/"
 db = config["DATABASE"]
 USERNAME = config["EMAIL"]
 PASSWORD = config["API_KEY"]
@@ -19,7 +19,7 @@ uid = common.authenticate(db, USERNAME, PASSWORD, {})
 models = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/object")
  
 credentials = pika.PlainCredentials(config["RABBITMQ_USERNAME"], config["RABBITMQ_PASSWORD"])
-params = pika.ConnectionParameters("localhost", 5672, config["RABBITMQ_VHOST"], credentials)
+params = pika.ConnectionParameters(config["RABBITMQ_HOST"], 5672, config["RABBITMQ_VHOST"], credentials)
 connection = pika.BlockingConnection(params)
 channel = connection.channel()
  
