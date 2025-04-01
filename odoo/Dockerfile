@@ -12,11 +12,7 @@ COPY .env /opt/odoo/.env
 COPY ./config/odoo.conf /etc/odoo/odoo.conf
 COPY requirements.txt /opt/odoo/requirements.txt
 
-# Installeer benodigde Python-pakketten
-RUN pip3 install --no-cache-dir -r /opt/odoo/requirements.txt \
-    pika \
-    python-dotenv
-
+RUN pip3 install --no-cache-dir -r /opt/odoo/requirements.txt
 
 EXPOSE 8069
 

@@ -18,7 +18,8 @@ services:
   web:
     build:
       context: ./odoo
-    image: odoo:17.0
+      dockerfile: Dockerfile
+    image: odoo-custom:17.0
     container_name: odoo-app
     restart: unless-stopped
     depends_on:

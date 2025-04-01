@@ -41,7 +41,7 @@ class ResPartner(models.Model):
 <attendify>
     <info>
         <sender>odoo</sender>
-        <operation>odoo.{operation}</operation>
+        <operation>{operation}</operation>
     </info>
     <user>
         <first_name>{first_name}</first_name>
@@ -62,16 +62,16 @@ class ResPartner(models.Model):
         rabbit_vhost = config["RABBITMQ_VHOST"]
 
         # exchange and queue settings
-        exchange_main = "odoo-user-management"
-        queue_main = "odoo.crm.user"
+        exchange_main = "user-management"
+        queue_main = "pos.user"
 
         # routing key mapping
         routing_key_map = {
-            'register': 'odoo.user.register',
-            'update': 'odoo.user.update',
-            'delete': 'odoo.user.delete'
+            'register': 'user.register',
+            'update': 'user.update',
+            'delete': 'user.delete'
         }
-        routing_key = routing_key_map.get(operation, 'odoo.user.update')
+        routing_key = routing_key_map.get(operation, 'user.update')
 
         try:
             _logger.debug("Attempting to send RabbitMQ message for partner %s: %s", self.id, xml_message)
