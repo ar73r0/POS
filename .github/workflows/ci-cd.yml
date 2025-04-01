@@ -44,9 +44,12 @@ jobs:
     runs-on: ubuntu-latest
     needs: test
     if: github.ref == 'refs/heads/main'
-    #TODO: deployment script
-   # steps:
-    #  - name: Deploy to Production Server
-       # run: echo "TODO: Implement deployment script here"
+    steps:
+      - name: Placeholder for deployment
+        run: echo "Deployment step to be implemented"
 
-       #zie ook in documentatie "extending the pipeline"
+   #TODO: deployment script
+# steps:
+#  - name: Deploy to Production Server
+#    run: echo "TODO: Implement deployment script here"
+
