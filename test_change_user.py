@@ -24,12 +24,12 @@ channel = connection.channel()
 exchange_main = 'user-management'
 routing_main = 'user.update'
 queue_main = 'pos.user'
- 
+ """
 # Declare exchange, queue, and bind them
 channel.exchange_declare(exchange=exchange_main, exchange_type='direct', durable=True)
 channel.queue_declare(queue=queue_main, durable=True)
 channel.queue_bind(exchange=exchange_main, queue=queue_main, routing_key=routing_main)
- 
+ """
 # Define the XML message
 xml_message = """
 <attendify>
@@ -45,13 +45,13 @@ xml_message = """
     </user>
 </attendify>
 """
- 
+ """
 # Publish the message
 channel.basic_publish(
     exchange=exchange_main,
     routing_key=routing_main,
     body=xml_message
-)
+)"""
 print("Message sent to RabbitMQ.")
  
 # Close connection
