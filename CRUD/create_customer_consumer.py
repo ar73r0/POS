@@ -513,11 +513,12 @@ def main():
                     </info>
                 </attendify>
                 """
+                    """
                 channel.basic_publish(
                     exchange=exchange_monitoring,
                     routing_key=routing_key_monitoring_failure,
                     body=failure_xml
-                )
+                )"""
 
                 return
 
@@ -540,12 +541,12 @@ def main():
                         <reason>User already exists</reason>
                     </info>
                 </attendify>
-                """
+                """"""
                 channel.basic_publish(
                     exchange=exchange_monitoring,
                     routing_key=routing_key_monitoring_failure,
                     body=failure_xml
-                )
+                )"""
 
                 return
 
@@ -582,12 +583,12 @@ def main():
                     <monitoring>user.register.success</monitoring>
                 </info>
             </attendify>
-            """
+            """"""
             channel.basic_publish(
                 exchange=exchange_monitoring,
                 routing_key=routing_key_monitoring_success,
                 body=success_xml
-            )
+            )"""
 
             
 
@@ -603,12 +604,12 @@ def main():
                     <reason>An error occurred while creating the user, please try again.</reason>
                 </info>
             </attendify>
-            """
+            """"""
             channel.basic_publish(
                 exchange=exchange_monitoring,
                 routing_key=routing_key_monitoring_failure,
                 body=failure_xml
-            )
+            )"""
 
             
 
