@@ -29,8 +29,8 @@ class ResPartner(models.Model):
         xml_message = f"""
 <attendify>
     <info>
-        <sender>pos</sender>
-        <operation>pos.{operation}</operation>
+        <sender>odoo</sender>
+        <operation>odoo.{operation}</operation>
     </info>
     <user>
         <first_name>{first_name}</first_name>
@@ -49,17 +49,17 @@ class ResPartner(models.Model):
         rabbit_password = config["RABBITMQ_PASSWORD"]
         rabbit_vhost = config["RABBITMQ_VHOST"]
 
-        # The exchange, routing key, and queue settings
-        exchange_main = "user-management"
-        queue_main = "pos.user"
-        
-        # register => user.register, etc.
+        # exchange and queue settings
+        exchange_main = "odoo-user-management"
+        queue_main = "odoo.crm.user"
+
+        # routing key mapping
         routing_key_map = {
-            'register': 'user.register',
-            'update': 'user.update',
-            'delete': 'user.delete'
+            'register': 'odoo.user.register',
+            'update': 'odoo.user.update',
+            'delete': 'odoo.user.delete'
         }
-        routing_key = routing_key_map.get(operation, 'user.update')
+        routing_key = routing_key_map.get(operation, 'odoo.user.update')
 
         try:
             _logger.debug("Attempting to send RabbitMQ message for partner %s: %s", self.id, xml_message)
@@ -80,9 +80,10 @@ class ResPartner(models.Model):
             # Declare the queue
             channel.queue_declare(queue=queue_main, durable=True)
 
+            # Bind the queue
             channel.queue_bind(exchange=exchange_main, queue=queue_main, routing_key=routing_key)
 
-            # the routing key
+            # Publish the message
             channel.basic_publish(
                 exchange=exchange_main,
                 routing_key=routing_key,
