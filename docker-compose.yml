@@ -1,5 +1,7 @@
 
 services:
+
+
   db:
     image: postgres:15
     container_name: odoo-db
@@ -75,3 +77,14 @@ services:
       # 'sender' en 'container_name' in de XML
       SENDER_NAME: "pos"
       CONTAINER_NAME: "heartbeat-service"
+  consumer_user:
+    build:
+      context: ./consumers
+    container_name: consumer_user
+    command: python consumer.py
+    env_file:
+      - ./consumers/.env
+    restart: always
+    depends_on:
+      - rabbitmq
+      - web
