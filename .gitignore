@@ -2,3 +2,6 @@ composer.phar
 /vendor/
 *.env
 postgres/
+odoo_db_data/
+odoo_web_data/
+rabbitmq_data/
