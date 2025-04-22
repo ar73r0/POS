@@ -4,7 +4,7 @@ WORKDIR /opt/odoo
 
 # Extra modules en config
 COPY odoo/addons /mnt/extra-addons
-COPY .env /opt/odoo/.env
+COPY odoo/.env /opt/odoo/.env
 COPY odoo/config/odoo.conf /etc/odoo/odoo.conf
 COPY odoo/requirements.txt /opt/odoo/requirements.txt
 
