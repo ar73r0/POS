@@ -6,7 +6,7 @@ WORKDIR /opt/odoo
 COPY ./addons /mnt/extra-addons
 COPY .env /opt/odoo/.env
 COPY ./config/odoo.conf /etc/odoo/odoo.conf
-COPY requirements.txt /opt/odoo/requirements.txt
+COPY odoo/requirements.txt /opt/odoo/requirements.txt
 
 # Installeer vereisten één keer, globaal
 RUN pip3 install --no-cache-dir --upgrade -r /opt/odoo/requirements.txt
