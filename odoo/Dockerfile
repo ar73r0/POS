@@ -1,11 +1,11 @@
-FROM odoo:17.0
+FROM odoo:18.0-slim
 
 WORKDIR /opt/odoo
 
 # Extra modules en config
-COPY odoo/addons /mnt/extra-addons
-COPY odoo/config/odoo.conf /etc/odoo/odoo.conf
-COPY odoo/requirements.txt /opt/odoo/requirements.txt
+COPY addons /mnt/extra-addons
+COPY config/odoo.conf /etc/odoo/odoo.conf
+COPY requirements.txt /opt/odoo/requirements.txt
 
 # Installeer vereisten één keer, globaal
 RUN pip3 install --no-cache-dir --upgrade -r /opt/odoo/requirements.txt
