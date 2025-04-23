@@ -6,6 +6,7 @@ from dotenv import dotenv_values
 import bcrypt
 import random
 import string
+import os
 
 _logger = logging.getLogger(__name__)
 
@@ -54,12 +55,11 @@ class ResPartner(models.Model):
 """
 
         # Load RabbitMQ credentials from .env
-        config = dotenv_values("/opt/odoo/.env")
-        rabbit_host = config["RABBITMQ_HOST"]
-        rabbit_port = int(config["RABBITMQ_PORT"])
-        rabbit_user = config["RABBITMQ_USERNAME"]
-        rabbit_password = config["RABBITMQ_PASSWORD"]
-        rabbit_vhost = config["RABBITMQ_VHOST"]
+        rabbit_host     = os.getenv("RABBITMQ_HOST")
+        rabbit_port     = int(os.getenv("RABBITMQ_PORT",    5672))
+        rabbit_user     = os.getenv("RABBITMQ_USERNAME")
+        rabbit_password = os.getenv("RABBITMQ_PASSWORD")
+        rabbit_vhost    = os.getenv("RABBITMQ_VHOST")
 
         # exchange and queue settings
         exchange_main = "user-management"
