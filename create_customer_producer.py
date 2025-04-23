@@ -86,7 +86,7 @@ xml_min = """
 
 
 credentials = pika.PlainCredentials(config["RABBITMQ_USERNAME"], config["RABBITMQ_PASSWORD"])
-params = pika.ConnectionParameters("localhost", 5672, config["RABBITMQ_VHOST"], credentials)
+params = pika.ConnectionParameters(config["RABBITMQ_HOST"], 30001, config["RABBITMQ_VHOST"], credentials)
 
 connection = pika.BlockingConnection(params)
 
