@@ -10,6 +10,15 @@ db = config["DATABASE"]
 USERNAME = config["EMAIL"]
 PASSWORD = config["API_KEY"]
 
+common = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/common")
+uid = common.authenticate(db, USERNAME, PASSWORD, {})
+models = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/object")
+ 
+credentials = pika.PlainCredentials(config["RABBITMQ_USERNAME"], config["RABBITMQ_PASSWORD"])
+params = pika.ConnectionParameters(config["RABBITMQ_HOST"], 30001, config["RABBITMQ_VHOST"], credentials)
+connection = pika.BlockingConnection(params)
+channel = connection.channel()
+
 # Authenticate with Odoo
 common = xmlrpc.client.ServerProxy(f"{url}xmlrpc/2/common")
 uid = common.authenticate(db, USERNAME, PASSWORD, {})

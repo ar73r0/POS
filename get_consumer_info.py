@@ -8,6 +8,15 @@ db = "odoo"
 USERNAME = config["EMAIL"]
 PASSWORD = config["API_KEY"]
 
+common = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/common")
+uid = common.authenticate(db, USERNAME, PASSWORD, {})
+models = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/object")
+ 
+credentials = pika.PlainCredentials(config["RABBITMQ_USERNAME"], config["RABBITMQ_PASSWORD"])
+params = pika.ConnectionParameters(config["RABBITMQ_HOST"], 30001, config["RABBITMQ_VHOST"], credentials)
+connection = pika.BlockingConnection(params)
+channel = connection.channel()
+
 common = xmlrpc.client.ServerProxy(f"{url}xmlrpc/2/common")
 uid = common.authenticate(db, USERNAME, PASSWORD, {})
 
@@ -30,7 +39,7 @@ operation = "create_or_update"
 
 for customer in customer_info:
     full_name = customer.get('name', '')
-    first_name, *last_parts = full_name.split(" ")
+    first_name, *last_parts = full_name.split("_")
     last_name = " ".join(last_parts) if last_parts else ''
     email = customer.get('email', '')
     phone = customer.get('phone', '')
