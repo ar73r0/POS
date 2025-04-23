@@ -1,11 +1,23 @@
 import os, pika, time, json
+import bcrypt
+import random
+import string
+
+
+
 from dotenv import  dotenv_values
 
 config = dotenv_values()
 
+characters = string.ascii_letters + string.digits + string.punctuation
+random_password = ''.join(random.choices(characters, k=12))
+salt = bcrypt.gensalt()
+hashed = bcrypt.hashpw(random_password.encode('utf-8'), salt)
 
 
-xml = """
+password = hashed.decode('utf-8')
+
+xml = f"""
 <attendify>
       <info>
           <sender>Kassa</sender>
@@ -19,7 +31,7 @@ xml = """
           <phone_number> +3212345678 </phone_number>
           <title>Mr.</title>
           <email>osman@test.com</email>
-          <password>Pasword123456!</password>
+          <password>{password}</password>
             
             
           <address>
@@ -68,7 +80,7 @@ xml = """
 """
 
 
-xml_min = """
+xml_min = f"""
 <attendify>
     <info>
         <sender>Kassa</sender>
@@ -79,7 +91,7 @@ xml_min = """
         <last_name>akturk</last_name>
         <email>osman@test.com</email>
         <title>Mr.</title>
-        <password>Hashed password</password>
+        <password>{password}</password>
     </user>
 </attendify>
 """
