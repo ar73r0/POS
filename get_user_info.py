@@ -4,7 +4,7 @@ from dotenv import dotenv_values
 # Load environment variables
 config = dotenv_values()
 
-# Odoo connection details (make sure to include the trailing slash like your working script!)
+# Odoo connection details
 url = "http://localhost:8069/"
 db = config["DATABASE"]
 USERNAME = config["EMAIL"]
@@ -37,8 +37,8 @@ def get_user_account_details():
         # Now fetch the partner's info
         partner_info = models.execute_kw(
             db, uid, PASSWORD,
-            'res.partner', 'read',
-            [partner_id],
+            'res.partner', 'search_read',
+            [[('id', '=', partner_id)]],
             {'fields': ['name', 'email', 'phone', 'street', 'city', 'zip', 'country_id']}
         )
 
@@ -49,6 +49,7 @@ def get_user_account_details():
         print("Phone:", partner.get('phone', 'N/A'))
         print("Address:", f"{partner.get('street', 'N/A')}, {partner.get('city', 'N/A')}, {partner.get('zip', 'N/A')}")
         print("Country ID:", partner.get('country_id', ['N/A'])[1] if partner.get('country_id') else 'N/A')
+        print(partner_info)
 
     except Exception as e:
         print("Error fetching account details:", str(e))
