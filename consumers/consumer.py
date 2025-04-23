@@ -25,8 +25,8 @@ channel = connection.channel()
  
 exchange_main = 'user-management'
 queue_main = 'pos.user'
- 
- 
+
+
 exchange_monitoring = 'monitoring'
 routing_key_monitoring_success = 'monitoring.success'
 routing_key_monitoring_failure = 'monitoring.failure'
@@ -51,9 +51,13 @@ def delete_user(email):
  
 def process_message(ch, method, properties, body):
     try:
+
+        parsed = xmltodict.parse(body.decode('utf-8'))
+        operation = parsed["attendify"]["info"]["operation"].strip().lower()
+        sender = parsed["attendify"]["info"]["sender"]
         routing_key = method.routing_key
  
-        if routing_key == "user.delete":
+        if operation == "delete":
             try:
                 print("Body (raw):", body)
                 print("Body (decoded):", body.decode('utf-8', errors='replace'))
@@ -67,7 +71,7 @@ def process_message(ch, method, properties, body):
             except Exception as e:
                 print(f"Error parsing XML in delete message: {e}")
  
-        elif routing_key == "user.update":
+        elif operation == "update":
             root = ET.fromstring(body)
             operation = root.find('info/operation').text.strip().lower()
  
@@ -98,7 +102,7 @@ def process_message(ch, method, properties, body):
             else:
                 print(f"No user found with email {email}.")
  
-        elif routing_key == "user.create":
+        elif operation == "create":
 
             def get_country_id(country):
                     
@@ -408,15 +412,8 @@ def process_message(ch, method, properties, body):
 
 
 
-
-
             try:
                 
-                parsed = xmltodict.parse(body.decode('utf-8'))
-                    
-                    
-                operation = parsed["attendify"]["info"]["operation"].strip().lower()
-                sender = parsed["attendify"]["info"]["sender"]
 
                 user_data = parsed["attendify"]["user"]
 
