@@ -21,6 +21,7 @@ models = xmlrpc.client.ServerProxy(f"{url}xmlrpc/2/object")
 
 customer_info = models.execute_kw(db, uid, PASSWORD,
         'res.partner', 'search_read',
+        #[[['ref', '=', uid]]],
         [[['customer_rank', '>=', 0]]],
         {'fields': ['name', 'email', 'phone', 'street', 'city', 'zip', 'country_id']}
         )
