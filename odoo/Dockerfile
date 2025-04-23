@@ -1,4 +1,4 @@
-FROM odoo:18.0-slim
+FROM odoo:17.0
 
 WORKDIR /opt/odoo
 
