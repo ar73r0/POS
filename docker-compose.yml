@@ -48,10 +48,11 @@ services:
       context: ./consumers
     container_name: consumer_user
     command: python consumer.py
-    env_file:
-      - ./consumers/.env
-    restart: always
+    volumes:
+      - ./consumers:/app
+    restart: unless-stopped
     depends_on:
       - web
+      - db
 volumes:
   odoo_data:
