@@ -38,18 +38,18 @@ routing_key_monitoring_failure = 'monitoring.failure'
 queue_monitoring = 'monitoring'
  
 
-def delete_user(email):
+def delete_user(ref):
     partner_ids = models.execute_kw(
         db, uid, PASSWORD,
         'res.partner', 'search',
-        [[['email', 'ilike', email]]],
+        [[['ref', '=', ref]]],
         {'context': {'active_test': False}}
     )
     if partner_ids:
         models.execute_kw(db, uid, PASSWORD, 'res.partner', 'unlink', [partner_ids])
-        print(f"Customer {email} deleted successfully.")
+        print(f"Customer {ref} deleted successfully.")
     else:
-        print(f"Customer {email} not found.")
+        print(f"Customer {ref} not found.")
  
 
 
@@ -68,9 +68,9 @@ def process_message(ch, method, properties, body):
                 print("Body (decoded):", body.decode('utf-8', errors='replace'))
  
                 data = xmltodict.parse(body.decode("utf-8"))
-                email = data['attendify']['user'].get("email")
-                if email:
-                    delete_user(email)
+                ref = data['attendify']['user'].get("id")
+                if ref:
+                    delete_user(ref)
                 else:
                     print("Invalid delete request format.")
             except Exception as e:
@@ -80,10 +80,11 @@ def process_message(ch, method, properties, body):
             root = ET.fromstring(body)
             operation = root.find('info/operation').text.strip().lower()
  
-            if operation != 'user.update':
+            if operation != 'update':
                 print("Operation mismatch in user.update message")
                 return
  
+            ref = root.find('user/id').text.strip()
             email = root.find('user/email').text.strip()
             first_name = root.find('user/first_name').text.strip()
             last_name = root.find('user/last_name').text.strip()
@@ -92,20 +93,20 @@ def process_message(ch, method, properties, body):
             partner_ids = models.execute_kw(
                 db, uid, PASSWORD,
                 'res.partner', 'search',
-                [[('email', 'ilike', email)]],
+                [[('ref', '=', ref)]],
                 {'context': {'active_test': False}}
             )
  
             if partner_ids:
                 update_fields = {
-                    'name': f"{first_name} {last_name}",
+                    'name': f"{first_name}_{last_name}",
                     'email': email,
                     'title': title
                 }
                 models.execute_kw(db, uid, PASSWORD, 'res.partner', 'write', [partner_ids, update_fields])
-                print(f"Updated user {email}.")
+                print(f"Updated user {ref}.")
             else:
-                print(f"No user found with email {email}.")
+                print(f"No user found with email {ref}.")
  
         elif operation == "create":
 
@@ -589,6 +590,4 @@ def process_message(ch, method, properties, body):
 channel.basic_consume(queue=queue_main, on_message_callback=process_message, auto_ack=True)
 print("Waiting for user messages...")
 channel.start_consuming()
- 
-
  
