@@ -108,9 +108,9 @@ class ResPartner(models.Model):
 
         for vals in vals_list:
             uid = f"OD{int(time.time() * 1000)}"
-            vals["ref"] = uid  # ref alanına UID yaz
+            vals["ref"] = uid 
             record = super(ResPartner, self).create([vals])[0]
-            record._send_to_rabbitmq("create")  # UID artık self.ref'te var
+            record._send_to_rabbitmq("create") 
             records.append(record)
 
         return self.browse([r.id for r in records])

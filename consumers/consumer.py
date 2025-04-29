@@ -534,8 +534,8 @@ def process_message(ch, method, properties, body):
                 if title:
                       odoo_user["title"] = title_id
 
-                if user_data.get("id"):
-                      odoo_user["ref"] = user_data["id"]
+                if user_data.get("uid"):
+                      odoo_user["ref"] = user_data["uid"]
                     
                 
 
@@ -546,12 +546,12 @@ def process_message(ch, method, properties, body):
             existing_user = models.execute_kw(
                     db, uid, PASSWORD,
                     'res.partner', 'search_read',
-                    [[['email', '=', odoo_user['email']]]],
+                    [[['ref', '=', odoo_user['uid']]]],
                     {'fields': ['id'], 'limit': 1}
                 )
 
             if existing_user:
-                    print(f"User {email} already exists with ID: {existing_user[0]['id']}")
+                    print(f"User {odoo_user['uid']} already exists with ID: {existing_user[0]['id']}")
                     return
 
 
@@ -581,7 +581,7 @@ def process_message(ch, method, properties, body):
 
 
         else:
-            print(f"Unknown routing key: {routing_key}")
+            print(f"Unknown operation: {operation}")
  
     except Exception as e:
         print(f"Error processing message: {e}")
