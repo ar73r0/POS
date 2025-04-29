@@ -1,7 +1,7 @@
 {
     'name': 'POS Customer Sync with RabbitMQ',
     'version': '1.0',
-    'depends': ['point_of_sale'],
+    'depends': ['point_of_sale','event'],
     'author': 'Attendify',
     'category': 'Point of Sale',
     'summary': 'Send POS customer updates/deletes/creates to RabbitMQ',
