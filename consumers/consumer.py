@@ -68,7 +68,7 @@ def process_message(ch, method, properties, body):
                 print("Body (decoded):", body.decode('utf-8', errors='replace'))
  
                 data = xmltodict.parse(body.decode("utf-8"))
-                ref = data['attendify']['user'].get("id")
+                ref = data['attendify']['user'].get("uid")
                 if ref:
                     delete_user(ref)
                 else:
@@ -84,7 +84,7 @@ def process_message(ch, method, properties, body):
                 print("Operation mismatch in user.update message")
                 return
  
-            ref = root.find('user/id').text.strip()
+            ref = root.find('user/uid').text.strip()
             email = root.find('user/email').text.strip()
             first_name = root.find('user/first_name').text.strip()
             last_name = root.find('user/last_name').text.strip()
