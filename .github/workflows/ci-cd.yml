@@ -42,5 +42,7 @@ jobs:
           port: 60022
           script: |
             cd ~/attendify/POS
+            docker-compose down --rmi all --volumes --remove-orphans
             docker compose pull
+            docker images | grep attendify
             docker compose up -d --remove-orphans
