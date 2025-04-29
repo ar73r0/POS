@@ -1,20 +1,16 @@
 from odoo import models, fields, api
 import logging
-#code module event naar rabbit
 
 _logger = logging.getLogger(__name__)
 
 class EventSync(models.Model):
-    _inherit = 'event.event'  # inheret excisting module odoo
+    _inherit = 'event.event'  # inheret excisting module from odoo
 
     def _send_event_to_rabbitmq(self, operation):
         """
         Sends event data to RabbitMQ.
         """
-
-        
         # code hier voor XML formatting etc
-
 
         _logger.info("Sending event %s to RabbitMQ [%s]", self.id, operation)
       
