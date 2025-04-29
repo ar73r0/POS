@@ -40,6 +40,6 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            cd ~/attendify
+            cd ~/attendify/POS
             docker-compose pull
             docker-compose up -d --remove-orphans
