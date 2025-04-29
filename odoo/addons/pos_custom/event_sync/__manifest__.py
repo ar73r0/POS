@@ -8,6 +8,6 @@
     'description': 'This module sends event.event model updates to RabbitMQ in XML format.',
     'data': [],
     'installable': True,
-    'auto_install': False,
+    'auto_install': True,
     'application': False,
 }
