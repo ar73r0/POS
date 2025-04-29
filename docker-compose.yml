@@ -91,11 +91,8 @@ services:
       - ./consumers:/app
     restart: unless-stopped
     depends_on:
-      web:
-      # service healthy anders start hij ookal is odoo niet klaar. ==> errors
-        condition: service_healthy
-      db:
-        condition: service_healthy
+      - web
+      - db
 
   heartbeat-consumer:
     <<: *heartbeat-template
