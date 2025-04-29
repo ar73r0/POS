@@ -103,13 +103,17 @@ class ResPartner(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        _logger.debug("Creating partner(s) with values: %s", vals_list)
-        records = super(ResPartner, self).create(vals_list)
-        # after creating, send user.register
-        for record in records:
-            _logger.debug("Triggering RabbitMQ register for partner ID %s", record.id)
-            record._send_to_rabbitmq('create')
-        return records
+        _logger.debug("Creating partners: %s", vals_list)
+        records = []
+
+        for vals in vals_list:
+            uid = f"OD{int(time.time() * 1000)}"
+            vals["ref"] = uid  # ref alanına UID yaz
+            record = super(ResPartner, self).create([vals])[0]
+            record._send_to_rabbitmq("create")  # UID artık self.ref'te var
+            records.append(record)
+
+        return self.browse([r.id for r in records])
 
     def write(self, vals):
         _logger.debug("Updating partner(s) with ID(s): %s and values: %s", self.ids, vals)
