@@ -10,55 +10,6 @@ config = dotenv_values()
 
 
 
-
-
-def main():
-    url = "http://localhost:8069/"
-    db = config["DATABASE"]
-    USERNAME = config["EMAIL"]
-    PASSWORD = config["API_KEY"]
-
-
-    common = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/common")
-    uid = common.authenticate(db, USERNAME, PASSWORD, {})
-    models = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/object")
-
-
-
-
-    credentials = pika.PlainCredentials(config["RABBITMQ_USERNAME"], config["RABBITMQ_PASSWORD"])
-    params = pika.ConnectionParameters("localhost", 5672, config["RABBITMQ_VHOST"], credentials)
-    connection = pika.BlockingConnection(params)
-    channel = connection.channel()
-
-
-    exchange_main = 'user-management'
-    routing_key_main = 'user.register'
-    queue_main = 'pos.user'
-
-
-
-    channel.exchange_declare(exchange=exchange_main, exchange_type="direct", durable=True)
-    channel.queue_declare(queue=queue_main, durable=True)
-    channel.queue_bind(queue=queue_main, exchange=exchange_main, routing_key=routing_key_main)
-
-
-    exchange_monitoring = 'monitoring'
-    routing_key_monitoring_success = 'monitoring.success'
-    routing_key_monitoring_failure = 'monitoring.failure'
-    queue_monitoring='monitoring'
-
-
-
-
-    channel.exchange_declare(exchange=exchange_monitoring, exchange_type='topic', durable=True)
-    channel.queue_declare(queue=queue_monitoring, durable=True)
-    channel.queue_bind(exchange=exchange_monitoring, queue=queue_monitoring, routing_key=routing_key_monitoring_success)
-    channel.queue_bind(exchange=exchange_monitoring, queue=queue_monitoring, routing_key=routing_key_monitoring_failure)
-
-
-
-
     def get_country_id(country):
         country_name_to_code = {
             "Afghanistan": "AF",
@@ -384,7 +335,7 @@ def main():
             title = user_data["title"]
 
             if title:
-                title_id = get_title_id(title)
+                title_id = get_title_id(title)  
 
             address = user_data["address"]
 
@@ -622,6 +573,55 @@ def main():
     print("Waiting ...")
 
     channel.start_consuming()
+
+def main():
+    url = "http://localhost:8069/"
+    db = config["DATABASE"]
+    USERNAME = config["EMAIL"]
+    PASSWORD = config["API_KEY"]
+
+
+    common = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/common")
+    uid = common.authenticate(db, USERNAME, PASSWORD, {})
+    models = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/object")
+
+
+
+
+    credentials = pika.PlainCredentials(config["RABBITMQ_USERNAME"], config["RABBITMQ_PASSWORD"])
+    params = pika.ConnectionParameters("localhost", 5672, config["RABBITMQ_VHOST"], credentials)
+    connection = pika.BlockingConnection(params)
+    channel = connection.channel()
+
+
+    exchange_main = 'user-management'
+    routing_key_main = 'user.register'
+    queue_main = 'pos.user'
+
+
+
+    channel.exchange_declare(exchange=exchange_main, exchange_type="direct", durable=True)
+    channel.queue_declare(queue=queue_main, durable=True)
+    channel.queue_bind(queue=queue_main, exchange=exchange_main, routing_key=routing_key_main)
+
+
+    exchange_monitoring = 'monitoring'
+    routing_key_monitoring_success = 'monitoring.success'
+    routing_key_monitoring_failure = 'monitoring.failure'
+    queue_monitoring='monitoring'
+
+
+
+
+    channel.exchange_declare(exchange=exchange_monitoring, exchange_type='topic', durable=True)
+    channel.queue_declare(queue=queue_monitoring, durable=True)
+    channel.queue_bind(exchange=exchange_monitoring, queue=queue_monitoring, routing_key=routing_key_monitoring_success)
+    channel.queue_bind(exchange=exchange_monitoring, queue=queue_monitoring, routing_key=routing_key_monitoring_failure)
+
+
+
+
+
 
 if __name__ == "__main__":
     try:
