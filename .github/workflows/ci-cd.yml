@@ -43,5 +43,6 @@ jobs:
           script: |
             cd ~/attendify/POS
             docker compose pull
+            git reset --hard HEAD
             git pull origin main
             docker compose up -d --remove-orphans
