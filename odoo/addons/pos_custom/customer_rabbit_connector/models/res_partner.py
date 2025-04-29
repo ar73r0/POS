@@ -7,6 +7,10 @@ import bcrypt
 import random
 import string
 import os
+import time
+
+
+
 
 _logger = logging.getLogger(__name__)
 
@@ -25,7 +29,8 @@ class ResPartner(models.Model):
             return
 
         # Split name into first and last
-        name_parts = self.name.split(' ')
+        name_parts = self.name.split('_')
+        user_id = f"OD{int(time.time() * 1000)}"
         first_name = name_parts[0] if name_parts else ''
         last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ''
 
@@ -45,6 +50,7 @@ class ResPartner(models.Model):
         <operation>{operation}</operation>
     </info>
     <user>
+        <uid>{user_id}</uid>
         <first_name>{first_name}</first_name>
         <last_name>{last_name}</last_name>
         <email>{self.email}</email>
