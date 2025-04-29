@@ -368,7 +368,7 @@ def main():
 
         
 
-   
+
 
     def parse_attendify_user(xml_data):
     
@@ -427,7 +427,7 @@ def main():
             from_company = user_data.get("from_company", "false").strip().lower()
             company_data = None
 
-           
+        
 
             if from_company == 'true':
                     company_raw = user_data["company"]
@@ -490,7 +490,7 @@ def main():
 
 
     def customer_callback(ch, method, properties, body):
-   
+
 
         try:
             odoo_user, invoice_address, company_data, operation, sender = parse_attendify_user(body.decode())
