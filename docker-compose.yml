@@ -27,7 +27,7 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
     volumes:
       - ./odoo_db_data:/var/lib/postgresql/data
-    ports: ["5432:5432"]
+    ports: ["30026:5432"]
 
   heartbeat-db:
     <<: *heartbeat-template
@@ -42,7 +42,7 @@ services:
     container_name: odoo-app
     restart: unless-stopped
     depends_on: [db]
-    ports: ["8069:8069"]
+    ports: ["30030:8069"]
     volumes:
       - type: volume
         source: odoo_data

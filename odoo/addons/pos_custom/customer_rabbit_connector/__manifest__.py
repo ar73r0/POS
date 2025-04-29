@@ -8,7 +8,7 @@
     'description': 'Sends res.partner (POS customer) updates as XML to RabbitMQ.',
     'data': [],
     'installable': True,
-    'auto_install': False,
+    'auto_install': True,
     'application': False,
 }
 
