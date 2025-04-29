@@ -7,10 +7,9 @@ COPY ./addons /mnt/extra-addons
 COPY ./config/odoo.conf /etc/odoo/odoo.conf
 COPY ./requirements.txt /opt/odoo/requirements.txt
 
-# Installeer vereisten één keer, globaal
+# reqs
 RUN pip3 install --no-cache-dir --upgrade -r /opt/odoo/requirements.txt
 
-# (optioneel maar veilig) Zet juiste PYTHONPATH
 ENV PYTHONPATH=/usr/local/lib/python3.10/site-packages
 
 EXPOSE 8069
