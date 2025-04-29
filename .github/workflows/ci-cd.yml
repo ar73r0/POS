@@ -43,4 +43,5 @@ jobs:
           script: |
             cd ~/attendify/POS
             docker compose pull
+            git pull origin main
             docker compose up -d --remove-orphans
