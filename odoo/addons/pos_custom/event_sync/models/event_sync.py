@@ -1,4 +1,3 @@
-@ -0,0 +1,89 @@
 from odoo import models, api
 import logging
 import pika
