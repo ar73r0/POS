@@ -58,7 +58,9 @@ def process_message(ch, method, properties, body):
     try:
 
         parsed = xmltodict.parse(body.decode('utf-8'))
-        operation = parsed["attendify"]["info"]["operation"].strip().lower()
+        operation_raw = parsed["attendify"]["info"].get("operation")
+        operation = operation_raw.strip().lower()
+        
         sender = parsed["attendify"]["info"]["sender"]
         routing_key = method.routing_key
  

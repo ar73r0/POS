@@ -27,7 +27,8 @@ class ResPartner(models.Model):
 
         # Split name into first and last
         name_parts = self.name.split('_')
-        user_id = f"OD{int(time.time() * 1000)}"
+        #user_id = f"OD{int(time.time() * 1000)}"
+        user_id = self.ref
         first_name = name_parts[0] if name_parts else ''
         last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ''
 
