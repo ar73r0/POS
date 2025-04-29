@@ -41,7 +41,6 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           port: 60022
           script: |
-            cd ~/attendify
+            cd ~/attendify/POS
             docker compose pull
-            docker images | grep attendify
             docker compose up -d --remove-orphans
