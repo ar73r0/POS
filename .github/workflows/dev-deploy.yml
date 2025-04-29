@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - dev
-      - dev/**  # subbranches like dev/alex, dev/jamie, etc.
+      - dev_**  # subbranches like dev/alex, dev/jamie, etc.
 
 jobs:
   test:
