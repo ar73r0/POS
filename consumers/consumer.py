@@ -19,7 +19,12 @@ uid = common.authenticate(db, USERNAME, PASSWORD, {})
 models = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/object")
  
 credentials = pika.PlainCredentials(config["RABBITMQ_USERNAME"], config["RABBITMQ_PASSWORD"])
-params = pika.ConnectionParameters(config["RABBITMQ_HOST"], 30001, config["RABBITMQ_VHOST"], credentials)
+params = pika.ConnectionParameters(
+    host=config["RABBITMQ_HOST"],
+    port=int(config["RABBITMQ_PORT"]),
+    virtual_host=config["RABBITMQ_VHOST"],
+    credentials=credentials
+)
 connection = pika.BlockingConnection(params)
 channel = connection.channel()
  
