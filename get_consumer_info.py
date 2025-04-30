@@ -1,5 +1,7 @@
 import xmlrpc.client
 from dotenv import dotenv_values
+import pika
+
 
 config = dotenv_values()
 
