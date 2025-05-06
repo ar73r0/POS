@@ -40,7 +40,6 @@ services:
   web:
     build:
       context: ./odoo
-    image: odoo:17.0
     #container_name: odoo-app
     restart: unless-stopped
     depends_on: [db]
@@ -49,7 +48,8 @@ services:
       - type: volume
         source: odoo_data
         target: /var/lib/odoo
-      - ./odoo/addons/pos_custom:/mnt/extra-addons
+      - ./odoo/addons:/mnt/extra-addons
+      - ./odoo/config/odoo.conf:/etc/odoo/odoo.conf:ro
 
     env_file: [.env]
     environment:
