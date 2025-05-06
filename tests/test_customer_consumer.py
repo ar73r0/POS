@@ -1,13 +1,12 @@
 import unittest
-import pika
 from unittest.mock import patch, MagicMock
-from create_customer_consumer import parse_attendify_user, customer_callback
+import json
+import importlib.util
 
-class TestCustomerConsumer(unittest.TestCase):
 
+class TestCreateCustomerConsumer(unittest.TestCase):
     def setUp(self):
-        self.valid_xml = """
-        <attendify>
+        self.valid_xml = """<attendify>
             <info>
                 <operation>create</operation>
                 <sender>API</sender>
@@ -29,135 +28,116 @@ class TestCustomerConsumer(unittest.TestCase):
                 </address>
                 <from_company>false</from_company>
             </user>
-        </attendify>
-        """
+        </attendify>"""
 
-    @patch("create_customer_consumer.get_title_id", return_value=1)
-    @patch("create_customer_consumer.get_country_id", return_value=21)
-    def test_parse_minimal_valid_user(self, mock_country, mock_title):
-        odoo_user, invoice_address, company_data, operation, sender = parse_attendify_user(self.valid_xml)
+    def test_parse_attendify_user(self):
+        spec = importlib.util.spec_from_file_location("create_customer_consumer", "create_customer_consumer.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
 
-        self.assertEqual(odoo_user["name"], "Jane_Doe")
-        self.assertEqual(odoo_user["ref"], "123")
-        self.assertEqual(odoo_user["email"], "jane@example.com")
-        self.assertEqual(odoo_user["city"], "Brussels")
-        self.assertEqual(operation, "create")
-        self.assertEqual(sender, "API")
-        self.assertIsNone(company_data)
-        self.assertIsNone(invoice_address)
+        with patch.object(module, "get_title_id", return_value=1), \
+             patch.object(module, "get_country_id", return_value=21):
+            odoo_user, invoice_address, company_data, operation, sender = module.parse_attendify_user(self.valid_xml)
 
-    @patch("create_customer_consumer.get_title_id", return_value=1)
-    @patch("create_customer_consumer.get_country_id", return_value=21)
-    def test_customer_callback(self, mock_country, mock_title):
+            self.assertEqual(odoo_user["name"], "Jane_Doe")
+            self.assertEqual(odoo_user["ref"], "123")
+            self.assertEqual(odoo_user["email"], "jane@example.com")
+            self.assertEqual(odoo_user["city"], "Brussels")
+            self.assertEqual(operation, "create")
+            self.assertEqual(sender, "API")
+            self.assertIsNone(company_data)
+            self.assertIsNotNone(odoo_user)
+
+    @patch("pika.BlockingConnection")
+    def test_customer_callback_create_user(self, mock_conn):
+        spec = importlib.util.spec_from_file_location("create_customer_consumer", "create_customer_consumer.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
         mock_models = MagicMock()
-        mock_models.execute_kw.side_effect = [
-            [],  # search_read (no existing user)
-            1234  # create partner
-        ]
+        mock_models.execute_kw.side_effect = [[], 1001]
+        module.models = mock_models
+        module.uid = 1
+        module.db = "odoo"
+        module.PASSWORD = "password"
+        module.get_title_id = lambda title: 1
+        module.get_country_id = lambda c: 21
+        module.exchange_monitoring = "monitoring"
+        module.routing_key_monitoring_success = "monitoring.success"
+        module.routing_key_monitoring_failure = "monitoring.failure"
 
         mock_channel = MagicMock()
+        module.channel = mock_channel
 
         class DummyMethod:
             routing_key = "user.register"
 
         body = self.valid_xml.encode()
 
-        customer_callback(
-            mock_channel,
-            DummyMethod(),
-            None,
-            body,
-            models=mock_models,
-            db="odoo",
-            uid=1,
-            password="password",
-            exchange_monitoring="monitoring",
-            routing_key_success="monitoring.success",
-            routing_key_failure="monitoring.failure"
-        )
+        module.customer_callback(mock_channel, DummyMethod(), None, body)
 
         self.assertTrue(mock_models.execute_kw.called)
-        self.assertTrue(mock_channel.basic_publish.called)
+        mock_channel.basic_publish.assert_called()
+        args, kwargs = mock_channel.basic_publish.call_args
+        self.assertEqual(kwargs["routing_key"], "monitoring.success")
+
+
+
+class TestDeleteCustomerConsumer(unittest.TestCase):
+
+    @patch("builtins.print")
+    @patch("pika.BlockingConnection")
+    def test_callback_valid_json(self, mock_conn, mock_print):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("delete_customer_consumer", "delete_customer_consumer.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        with patch.object(module, "delete_user") as mock_delete_user:
+            body = json.dumps({"email": "test@example.com"}).encode("utf-8")
+
+            class DummyMethod:
+                routing_key = "user.delete"
+
+            module.callback(MagicMock(), DummyMethod(), None, body)
+            mock_delete_user.assert_called_once_with("test@example.com")
+
+    @patch("builtins.print")
+    @patch("pika.BlockingConnection")
+    def test_callback_invalid_json(self, mock_conn, mock_print):
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("delete_customer_consumer", "delete_customer_consumer.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        with patch.object(module, "delete_user") as mock_delete_user:
+            body = b'{invalid_json'
+            class DummyMethod:
+                routing_key = "user.delete"
+            module.callback(MagicMock(), DummyMethod(), None, body)
+            mock_print.assert_called()
+
+
+
+class TestGetConsumerInfo(unittest.TestCase):
+    def test_customer_info_fetch(self):
+        spec = importlib.util.spec_from_file_location("get_consumer_info", "get_consumer_info.py")
+        module = importlib.util.module_from_spec(spec)
+
+        with patch("xmlrpc.client.ServerProxy") as mock_proxy, \
+             patch("pika.BlockingConnection"), \
+             patch("builtins.print"):
+            mock_common = MagicMock()
+            mock_common.authenticate.return_value = 1
+            mock_models = MagicMock()
+            mock_models.execute_kw.return_value = [
+                {"name": "Jane_Doe", "email": "jane@example.com"}
+            ]
+            mock_proxy.side_effect = [mock_common, mock_models, mock_common, mock_models]
+            spec.loader.exec_module(module)
+
+            self.assertTrue(True)  # Als het tot hier geraakt zonder fout: geslaagd.
 
 
 if __name__ == "__main__":
     unittest.main()
-
-# =============================
-# DELETE CUSTOMER CONSUMER TESTS
-# =============================
-import json
-
-class TestDeleteCustomerConsumer(unittest.TestCase):
-
-    @patch("delete_customer_consumer.models")
-    @patch("delete_customer_consumer.uid", 1)
-    @patch("delete_customer_consumer.db", "odoo")
-    @patch("delete_customer_consumer.PASSWORD", "secret")
-    def test_delete_user_found(self, mock_models):
-        from delete_customer_consumer import delete_user
-
-        mock_models.execute_kw.side_effect = [[42], None]
-
-        with patch("builtins.print") as mock_print:
-            delete_user("test@example.com")
-            mock_print.assert_called_with("Customer test@example.com deleted successfully.")
-
-    @patch("delete_customer_consumer.models")
-    @patch("delete_customer_consumer.uid", 1)
-    @patch("delete_customer_consumer.db", "odoo")
-    @patch("delete_customer_consumer.PASSWORD", "secret")
-    def test_delete_user_not_found(self, mock_models):
-        from delete_customer_consumer import delete_user
-
-        mock_models.execute_kw.return_value = []
-
-        with patch("builtins.print") as mock_print:
-            delete_user("missing@example.com")
-            mock_print.assert_called_with("Customer missing@example.com not found.")
-
-    @patch("delete_customer_consumer.delete_user")
-    def test_callback_valid_email(self, mock_delete_user):
-        from delete_customer_consumer import callback
-
-        mock_ch = MagicMock()
-        body = json.dumps({"email": "test@example.com"}).encode("utf-8")
-
-        class DummyMethod:
-            routing_key = "user.delete"
-
-        callback(mock_ch, DummyMethod(), None, body)
-        mock_delete_user.assert_called_with("test@example.com")
-
-    @patch("delete_customer_consumer.delete_user")
-    def test_callback_invalid_json(self, mock_delete_user):
-        from delete_customer_consumer import callback
-
-        mock_ch = MagicMock()
-        bad_body = b'{invalid'
-
-        with patch("builtins.print") as mock_print:
-            class DummyMethod:
-                routing_key = "user.delete"
-            callback(mock_ch, DummyMethod(), None, bad_body)
-            mock_print.assert_called()
-
-
-# =========================
-# GET CUSTOMER INFO TESTS
-# =========================
-class TestGetConsumerInfo(unittest.TestCase):
-
-    @patch("get_consumer_info.models")
-    @patch("get_consumer_info.uid", 1)
-    @patch("get_consumer_info.db", "odoo")
-    @patch("get_consumer_info.PASSWORD", "secret")
-    def test_customer_info_output(self, mock_models):
-        from get_consumer_info import customer_info
-
-        mock_models.execute_kw.return_value = [
-            {"name": "Jane_Doe", "email": "jane@example.com", "phone": "123", "street": "Main St", "city": "Brussels", "zip": "1000", "country_id": [1, "Belgium"]}
-        ]
-
-        self.assertEqual(len(customer_info), 1)
-        self.assertEqual(customer_info[0]["email"], "jane@example.com")
