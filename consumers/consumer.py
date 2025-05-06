@@ -425,6 +425,23 @@ def process_message(ch, method, properties, body):
 
                 user_data = parsed["attendify"]["user"]
 
+                uid_value = user_data.get("uid")
+
+                if not uid_value:
+                    print("Error: UID missing in user data.")
+                    return
+
+                existing_user = models.execute_kw(
+                    db, uid, PASSWORD,
+                    'res.partner', 'search_read',
+                    [[['ref', '=', uid_value]]],
+                    {'fields': ['id'], 'limit': 1}
+                )
+
+                if existing_user:
+                    print(f"User {uid_value} already exists with ID: {existing_user[0]['id']}")
+                    return
+
                 
             
                 address = user_data.get("address")
@@ -545,16 +562,7 @@ def process_message(ch, method, properties, body):
                 print(f"XML parse error: {e}")
                     
 
-            existing_user = models.execute_kw(
-                    db, uid, PASSWORD,
-                    'res.partner', 'search_read',
-                    [[['ref', '=', odoo_user['uid']]]],
-                    {'fields': ['id'], 'limit': 1}
-                )
 
-            if existing_user:
-                    print(f"User {odoo_user['uid']} already exists with ID: {existing_user[0]['id']}")
-                    return
 
 
             if company_data:
@@ -589,7 +597,7 @@ def process_message(ch, method, properties, body):
         print(f"Error processing message: {e}")
  
  
-channel.basic_consume(queue=queue_main, on_message_callback=process_message, auto_ack=True)
+channel.basic_consume(queue=queue_main, on_message_callback=process_message, auto_ack=False)
 print("Waiting for user messages...")
 channel.start_consuming()
  
