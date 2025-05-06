@@ -1,20 +1,20 @@
 # version: "3.9"
 
-# x-heartbeat: &heartbeat-template
-#   build:
-#     context: ./heartbeat
-#     dockerfile: Dockerfile
-#   restart: unless-stopped
-#   volumes:
-#     - ./heartbeat/heartbeat.py:/app/heartbeat.py:ro
-#   command: ["python", "/app/heartbeat.py"]
-#   env_file:
-#     - .env
-#   environment:
-#     - HEARTBEAT_INTERVAL=1
-#     # worden overschreven per service
-#     - SENDER_NAME=
-#     - CONTAINER_NAME=
+x-heartbeat: &heartbeat-template
+  build:
+    context: ./heartbeat
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  volumes:
+    - ./heartbeat/heartbeat.py:/app/heartbeat.py:ro
+  command: ["python", "/app/heartbeat.py"]
+  env_file:
+    - .env
+  environment:
+    - HEARTBEAT_INTERVAL=1
+    # worden overschreven per service
+    - SENDER_NAME=
+    - CONTAINER_NAME=
 
 services:
   db:
@@ -29,13 +29,13 @@ services:
       - odoo_db_data:/var/lib/postgresql/data
     ports: ["30026:5432"]
 
-  # heartbeat-db:
-  #   <<: *heartbeat-template
-  #   container_name: hb-odoo-db
-  #   depends_on: [db]
-  #   environment:
-  #     - SENDER_NAME=pos
-  #     - CONTAINER_NAME=odoo-db
+  heartbeat-db:
+    <<: *heartbeat-template
+    container_name: hb-odoo-db
+    depends_on: [db]
+    environment:
+      - SENDER_NAME=pos
+      - CONTAINER_NAME=odoo-db
 
   web:
     build:
@@ -63,13 +63,13 @@ services:
       - RABBITMQ_VHOST=${RABBITMQ_VHOST}
     dns: [8.8.8.8, 1.1.1.1]
 
-  # heartbeat-web:
-  #   <<: *heartbeat-template
-  #   container_name: hb-odoo-app
-  #   depends_on: [web]
-  #   environment:
-  #     - SENDER_NAME=pos
-  #     - CONTAINER_NAME=odoo-web
+  heartbeat-web:
+    <<: *heartbeat-template
+    container_name: hb-odoo-app
+    depends_on: [web]
+    environment:
+      - SENDER_NAME=pos
+      - CONTAINER_NAME=odoo-web
 
   adminer:
     image: adminer
@@ -97,13 +97,13 @@ services:
       - web
       - db
 
-  # heartbeat-consumer:
-  #   <<: *heartbeat-template
-  #   container_name: hb-consumer_user
-  #   depends_on: [consumer_user]
-  #   environment:
-  #     - SENDER_NAME=pos
-  #     - CONTAINER_NAME=consumer_user
+  heartbeat-consumer:
+    <<: *heartbeat-template
+    container_name: hb-consumer_user
+    depends_on: [consumer_user]
+    environment:
+      - SENDER_NAME=pos
+      - CONTAINER_NAME=consumer_user
 
 volumes:
   odoo_data:
