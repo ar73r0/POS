@@ -38,7 +38,7 @@ services:
   #     - CONTAINER_NAME=odoo-db
 
   web:
-    build: 
+    build:
       context: ./odoo
     image: odoo:17.0
     #container_name: odoo-app
@@ -50,6 +50,7 @@ services:
         source: odoo_data
         target: /var/lib/odoo
       - ./odoo/addons/pos_custom:/mnt/extra-addons
+
     env_file: [.env]
     environment:
       - HOST=db
