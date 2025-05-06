@@ -38,7 +38,8 @@ services:
   #     - CONTAINER_NAME=odoo-db
 
   web:
-    build: .
+    build: 
+      context: ./odoo
     image: odoo:17.0
     #container_name: odoo-app
     restart: unless-stopped
