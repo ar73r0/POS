@@ -3,6 +3,7 @@ from unittest.mock import patch, MagicMock
 import json
 import importlib.util
 
+print(">>> LOADED CONSUMER TESTS")
 
 class TestCreateCustomerConsumer(unittest.TestCase):
     def setUp(self):

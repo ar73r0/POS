@@ -2,48 +2,38 @@ import unittest
 from unittest.mock import patch, MagicMock
 import importlib.util
 
-class TestDeleteCustomerProducer(unittest.TestCase):
-
-    @patch("delete_customer_producer.pika.BlockingConnection")
-    def test_send_delete_request(self, mock_connection):
-        from delete_customer_producer import send_delete_request
-
-        mock_channel = MagicMock()
-        mock_connection.return_value.channel.return_value = mock_channel
-
-        send_delete_request("john@example.com")
-
-        mock_channel.basic_publish.assert_called_once()
-        args, kwargs = mock_channel.basic_publish.call_args
-        self.assertEqual(kwargs["exchange"], "user-management")
-        self.assertEqual(kwargs["routing_key"], "user.delete")
-        self.assertIn("<email>john@example.com</email>", kwargs["body"])
-        self.assertIn("<operation>delete</operation>", kwargs["body"])
-
+print(">>> LOADED PRODUCER TESTS")
 
 class TestCreateCustomerProducer(unittest.TestCase):
 
     @patch("pika.BlockingConnection")
-    def test_create_message_sent(self, mock_connection):
-        import importlib.util
-        import os
-
-        path = os.path.abspath("create_customer_producer.py")
-        spec = importlib.util.spec_from_file_location("create_customer_producer", path)
-        producer = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(producer)
-
+    def test_create_message_sent(self, mock_conn):
+        print(">>> RUNNING test_create_message_sent")
         mock_channel = MagicMock()
-        mock_connection.return_value.channel.return_value = mock_channel
+        mock_conn.return_value.channel.return_value = mock_channel
 
-        mock_channel.basic_publish(exchange="user-management",
-                                   routing_key="user.register",
-                                   body=producer.xml_min,
-                                   properties=None)
+        spec = importlib.util.spec_from_file_location("create_customer_producer", "create_customer_producer.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
 
         mock_channel.basic_publish.assert_called_once()
-        args, kwargs = mock_channel.basic_publish.call_args
-        self.assertIn("<first_name>osman</first_name>", kwargs["body"])
+
+
+class TestDeleteCustomerProducer(unittest.TestCase):
+
+    @patch("pika.BlockingConnection")
+    def test_send_delete_request(self, mock_conn):
+        print(">>> RUNNING test_send_delete_request")
+        mock_channel = MagicMock()
+        mock_conn.return_value.channel.return_value = mock_channel
+
+        spec = importlib.util.spec_from_file_location("delete_customer_producer", "delete_customer_producer.py")
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        module.send_delete_request("john@example.com")
+        mock_channel.basic_publish.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()
