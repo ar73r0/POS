@@ -77,13 +77,13 @@ services:
     restart: unless-stopped
     ports: ["8080:8080"]
 
-  # heartbeat-adminer:
-  #   <<: *heartbeat-template
-  #   container_name: hb-adminer
-  #   depends_on: [adminer]
-  #   environment:
-  #     - SENDER_NAME=pos
-  #     - CONTAINER_NAME=adminer
+  heartbeat-adminer:
+    <<: *heartbeat-template
+    container_name: hb-adminer
+    depends_on: [adminer]
+    environment:
+      - SENDER_NAME=pos
+      - CONTAINER_NAME=adminer
 
   consumer_user:
     build:
