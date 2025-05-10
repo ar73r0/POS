@@ -1,4 +1,5 @@
-# version: "3.9"
+# docker-compose.yml
+version: "3.9"
 
 x-heartbeat: &heartbeat-template
   build:
@@ -7,27 +8,33 @@ x-heartbeat: &heartbeat-template
   restart: unless-stopped
   volumes:
     - ./heartbeat/heartbeat.py:/app/heartbeat.py:ro
+    - /var/run/docker.sock:/var/run/docker.sock:ro
   command: ["python", "/app/heartbeat.py"]
   env_file:
     - .env
   environment:
     - HEARTBEAT_INTERVAL=1
-    # worden overschreven per service
     - SENDER_NAME=
     - CONTAINER_NAME=
+    - TARGET_CONTAINER=
 
 services:
   db:
-    image: postgres:15
     container_name: odoo-db
+    image: postgres:15
     restart: unless-stopped
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
       - odoo_db_data:/var/lib/postgresql/data
     ports: ["30026:5432"]
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   heartbeat-db:
     <<: *heartbeat-template
@@ -36,46 +43,46 @@ services:
     environment:
       - SENDER_NAME=pos
       - CONTAINER_NAME=odoo-db
+      - TARGET_CONTAINER=odoo-db
 
   web:
+    container_name: odoo-web
     build:
       context: ./odoo
-    #container_name: odoo-app
     restart: unless-stopped
     depends_on: [db]
     ports: ["30030:8069"]
     volumes:
-      - type: volume
-        source: odoo_data
-        target: /var/lib/odoo
+      - odoo_data:/var/lib/odoo
       - ./odoo/addons:/mnt/extra-addons
       - ./odoo/config/odoo.conf:/etc/odoo/odoo.conf:ro
-
     env_file: [.env]
-    environment:
-      - HOST=db
-      - USER=${POSTGRES_USER}
-      - PASSWORD=${POSTGRES_PASSWORD}
-      - RABBITMQ_HOST=${RABBITMQ_HOST}
-      - RABBITMQ_PORT=${RABBITMQ_PORT}
-      - RABBITMQ_USERNAME=${RABBITMQ_USERNAME}
-      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
-      - RABBITMQ_VHOST=${RABBITMQ_VHOST}
     dns: [8.8.8.8, 1.1.1.1]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8069/web/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   heartbeat-web:
     <<: *heartbeat-template
-    container_name: hb-odoo-app
+    container_name: hb-odoo-web
     depends_on: [web]
     environment:
       - SENDER_NAME=pos
       - CONTAINER_NAME=odoo-web
+      - TARGET_CONTAINER=odoo-web
 
   adminer:
-    image: adminer
     container_name: adminer
+    image: adminer
     restart: unless-stopped
     ports: ["8080:8080"]
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   heartbeat-adminer:
     <<: *heartbeat-template
@@ -84,11 +91,12 @@ services:
     environment:
       - SENDER_NAME=pos
       - CONTAINER_NAME=adminer
+      - TARGET_CONTAINER=adminer
 
   consumer_user:
+    container_name: consumer_user
     build:
       context: ./consumers
-    container_name: consumer_user
     command: python consumer.py
     volumes:
       - ./consumers:/app
@@ -96,14 +104,20 @@ services:
     depends_on:
       - web
       - db
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f consumer.py >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   heartbeat-consumer:
     <<: *heartbeat-template
-    container_name: hb-consumer_user
+    container_name: hb-consumer-user
     depends_on: [consumer_user]
     environment:
       - SENDER_NAME=pos
       - CONTAINER_NAME=consumer_user
+      - TARGET_CONTAINER=consumer_user
 
 volumes:
   odoo_data:

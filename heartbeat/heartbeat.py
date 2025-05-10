@@ -1,65 +1,81 @@
-import pika
-import time
+# heartbeat/heartbeat.py
 import os
+import time
 import logging
-from datetime import datetime
+import pika
 import xml.etree.ElementTree as ET
+from datetime import datetime
+import docker
 
 logging.basicConfig(level=logging.INFO)
 
 # RabbitMQ verbinding
-RABBITMQ_HOST = os.environ.get('RABBITMQ_HOST')
+RABBITMQ_HOST = os.environ['RABBITMQ_HOST']
 RABBITMQ_PORT = int(os.environ.get('RABBITMQ_PORT', 5672))
-RABBITMQ_USER = os.environ.get('RABBITMQ_USERNAME')
-RABBITMQ_PASS = os.environ.get('RABBITMQ_PASSWORD')
-RABBITMQ_VHOST = os.environ.get('RABBITMQ_VHOST')
+RABBITMQ_USER = os.environ['RABBITMQ_USERNAME']
+RABBITMQ_PASS = os.environ['RABBITMQ_PASSWORD']
+RABBITMQ_VHOST = os.environ['RABBITMQ_VHOST']
 
 # Heartbeat config
-SENDER = os.environ.get('SENDER_NAME', 'pos')
-CONTAINER_NAME = os.environ.get('CONTAINER_NAME', 'pos-heartbeat')
-EXCHANGE_NAME = os.environ.get('HEARTBEAT_EXCHANGE', 'monitoring')
-ROUTING_KEY = os.environ.get('HEARTBEAT_ROUTING_KEY', 'monitoring.heartbeat')
-HEARTBEAT_INTERVAL = int(os.environ.get('HEARTBEAT_INTERVAL', '1'))
+SENDER         = os.environ.get('SENDER_NAME', 'pos')
+CONTAINER_NAME = os.environ['CONTAINER_NAME']        
+EXCHANGE_NAME  = os.environ.get('HEARTBEAT_EXCHANGE', 'monitoring')
+ROUTING_KEY    = os.environ.get('HEARTBEAT_ROUTING_KEY', 'monitoring.heartbeat')
+INTERVAL       = int(os.environ.get('HEARTBEAT_INTERVAL', '1'))
+TARGET         = os.environ['TARGET_CONTAINER']    
 
-def create_heartbeat_message():
+# Docker-client via socket
+docker_client = docker.DockerClient(base_url='unix://var/run/docker.sock')
+
+def is_target_healthy():
+    try:
+        ctr = docker_client.containers.get(TARGET)
+        status = ctr.attrs.get('State', {}) \
+                         .get('Health', {}) \
+                         .get('Status')
+        return status == 'healthy'
+    except Exception:
+        return False
+
+def create_heartbeat_msg():
     root = ET.Element('heartbeat')
-    ET.SubElement(root, 'sender').text = SENDER
+    ET.SubElement(root, 'sender').text         = SENDER
     ET.SubElement(root, 'container_name').text = CONTAINER_NAME
-    ET.SubElement(root, 'timestamp').text = datetime.utcnow().isoformat() + 'Z'
+    ET.SubElement(root, 'timestamp').text      = datetime.utcnow().isoformat() + 'Z'
     return ET.tostring(root, encoding='utf-8', method='xml')
 
 def main():
-    credentials = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASS)
-    connection = pika.BlockingConnection(
+    creds = pika.PlainCredentials(RABBITMQ_USER, RABBITMQ_PASS)
+    conn = pika.BlockingConnection(
         pika.ConnectionParameters(
             host=RABBITMQ_HOST,
             port=RABBITMQ_PORT,
             virtual_host=RABBITMQ_VHOST,
-            credentials=credentials
+            credentials=creds
         )
     )
-    channel = connection.channel()
+    ch = conn.channel()
+    ch.exchange_declare(exchange=EXCHANGE_NAME,
+                        exchange_type='topic',
+                        durable=True)
 
-    # Declareer exchange 
-    channel.exchange_declare(exchange=EXCHANGE_NAME, exchange_type='topic', durable=True)
-
-    logging.info(f"[Heartbeat] POS heartbeat gestart voor container '{CONTAINER_NAME}'")
-
+    logging.info(f"[Heartbeat] gestart voor container '{CONTAINER_NAME}', target='{TARGET}'")
     try:
         while True:
-            message = create_heartbeat_message()
-            channel.basic_publish(
-                exchange=EXCHANGE_NAME,
-                routing_key=ROUTING_KEY,
-                body=message,
-                properties=pika.BasicProperties(delivery_mode=2)
-            )
-            logging.info(f"[Heartbeat] Verzonden: {message.decode('utf-8')}")
-            time.sleep(HEARTBEAT_INTERVAL)
-    except KeyboardInterrupt:
-        logging.info("POS heartbeat gestopt")
+            if is_target_healthy():
+                msg = create_heartbeat_msg()
+                ch.basic_publish(
+                    exchange=EXCHANGE_NAME,
+                    routing_key=ROUTING_KEY,
+                    body=msg,
+                    properties=pika.BasicProperties(delivery_mode=2)
+                )
+                logging.info(f"[Heartbeat] Verzonden: {msg.decode()}")
+            else:
+                logging.warning(f"[Heartbeat] Sla over: target '{TARGET}' niet healthy")
+            time.sleep(INTERVAL)
     finally:
-        connection.close()
+        conn.close()
 
 if __name__ == "__main__":
     main()
