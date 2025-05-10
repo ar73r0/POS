@@ -59,7 +59,7 @@ services:
       - "30030:8069"
     volumes:
       - odoo_data:/var/lib/odoo
-      - ./odoo/addons:/mnt/extra-addons
+      - ./odoo/addons/pos_custom:/mnt/extra-addons
       - ./odoo/config/odoo.conf:/etc/odoo/odoo.conf:ro
     env_file:
       - .env

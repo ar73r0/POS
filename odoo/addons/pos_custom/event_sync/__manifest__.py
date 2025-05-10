@@ -1,6 +1,7 @@
 {
     'name': 'Event Sync with RabbitMQ',
     'version': '1.0',
+    'license': 'LGPL-3',
     'depends': ['event'],
     'author': 'Attendify',
     'category': 'Events',
@@ -8,6 +9,6 @@
     'description': 'This module sends event.event model updates to RabbitMQ in XML format.',
     'data': [],
     'installable': True,
-    'auto_install': True,
     'application': False,
+    'auto_install': False,
 }
