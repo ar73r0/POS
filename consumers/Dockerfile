@@ -3,15 +3,20 @@ FROM python:3.10-slim
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1
 
-# Maak werkdirectory
+# Set working directory
 WORKDIR /app
 
-# Copy requirements + install
-COPY requirements.txt .
+# Install procps so that pgrep is available for healthchecks
+RUN apt-get update \
+    && apt-get install -y procps \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and install Python dependencies
+COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy alle code (consumers + scripts)
-COPY . .
+# Copy consumer scripts and other files
+COPY . ./
 
-# Standaard commando – kan worden overschreven in docker-compose
+# Default command (can be overridden in docker-compose)
 CMD ["python", "consumer.py"]
