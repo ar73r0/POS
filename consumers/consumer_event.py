@@ -1,99 +1,124 @@
+import os
 import pika
-import xmlrpc.client
 import xmltodict
-import xml.etree.ElementTree as ET
+import xmlrpc.client
 from dotenv import dotenv_values
 
 # Load config
-config = dotenv_values()
+cfg = dotenv_values()
 
-# Odoo connection
-url = f"http://{config['ODOO_HOST']}:8069/"
-db = config["DATABASE"]
-USERNAME = config["EMAIL"]
-PASSWORD = config["API_KEY"]
+# Set up Odoo RPC
+url     = f"http://{cfg['ODOO_HOST']}:8069/xmlrpc/2/"
+common  = xmlrpc.client.ServerProxy(url + "common")
+uid     = common.authenticate(cfg["DATABASE"], cfg["EMAIL"], cfg["API_KEY"], {})
+models  = xmlrpc.client.ServerProxy(url + "object")
 
-common = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/common")
-uid = common.authenticate(db, USERNAME, PASSWORD, {})
-models = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/object")
-
-# RabbitMQ connection
-credentials = pika.PlainCredentials(config["RABBITMQ_USERNAME"], config["RABBITMQ_PASSWORD"])
+# Set up RabbitMQ
+creds = pika.PlainCredentials(cfg["RABBITMQ_USERNAME"], cfg["RABBITMQ_PASSWORD"])
 params = pika.ConnectionParameters(
-    host=config["RABBITMQ_HOST"],
-    port=int(config.get("RABBITMQ_PORT", 30001)),
-    virtual_host=config["RABBITMQ_VHOST"],
-    credentials=credentials
+    host=cfg["RABBITMQ_HOST"],
+    port=int(cfg.get("RABBITMQ_PORT", 5672)),
+    virtual_host=cfg["RABBITMQ_VHOST"],
+    credentials=creds,
 )
+conn    = pika.BlockingConnection(params)
+ch      = conn.channel()
 
-connection = pika.BlockingConnection(params)
-channel = connection.channel()
+exchange     = "event"
+queue        = "pos.event"
+routing_keys = ["event.register", "event.update", "event.delete"]
 
-exchange_main = 'user-management'
-queue_main = 'pos.event'
-routing_key = 'event.register'
-
-# XML message to send
-xml_message = """
-<attendify>
-    <info>
-        <sender>crm</sender>
-        <operation>create</operation>
-    </info>
-    <event>
-        <uid_event>SF230420251320</uid_event>
-        <name>Super important event</name>
-        <date>2025-04-23T14:30:00Z</date>
-        <location>Bergensesteenweg 155 1651 Lot, België</location>
-        <description>This is a cool event where you can walk around</description>
-    </event>
-</attendify>
-"""
-
-# Send XML message
-channel.basic_publish(
-    exchange=exchange_main,
-    routing_key=routing_key,
-    body=xml_message.encode('utf-8')
-)
-
-print("Event message sent.")
+ch.exchange_declare(exchange=exchange, exchange_type="direct", durable=True)
+ch.queue_declare(queue=queue, durable=True)
+for rk in routing_keys:
+    ch.queue_bind(exchange=exchange, queue=queue, routing_key=rk)
+ch.basic_qos(prefetch_count=1)
 
 
-# Consumer logic
-def process_message(ch, method, properties, body):
+def process_message(ch, method, props, body):
     try:
-        print("Received message, processing...")
-        parsed = xmltodict.parse(body.decode('utf-8'))
-        operation = parsed["attendify"]["info"]["operation"].strip().lower()
+        msg = xmltodict.parse(body)
+        op  = msg["attendify"]["info"]["operation"].lower()
+        ev  = msg["attendify"]["event"]
 
-        if operation == "create":
-            event_data = parsed["attendify"]["event"]
-            name = event_data.get("name", "Unnamed Event")
-            date = event_data.get("date")
-            location = event_data.get("location", "")
-            description = event_data.get("description", "")
+        # Prepare vals
+        vals = {
+            "external_uid": ev.get("uid_event"),
+            "name":         ev.get("name"),
+            "date_begin":   ev.get("start_date"),
+            "date_end":     ev.get("end_date"),
+        }
 
-            event_vals = {
-                "name": name,
-                "date_begin": date,
-                "location": location,
-                "description": description,
-            }
+        # Handle description (strip CDATA)
+        desc = ev.get("description", "")
+        if desc.startswith("<![CDATA[") and desc.endswith("]]>"):
+            desc = desc[9:-3]
+        vals["description"] = desc
 
-            new_event_id = models.execute_kw(
-                db, uid, PASSWORD,
-                'event.event', 'create',
-                [event_vals]
-            )
+        # Deduplicate by external_uid
+        existing = models.execute_kw(
+            cfg["DATABASE"], uid, cfg["API_KEY"],
+            "event.event", "search_read",
+            [[("external_uid","=", vals["external_uid"])]],
+            {"limit": 1, "fields": ["id"]}
+        )
+        dup_id = existing and existing[0]["id"]
 
-            print(f"Event created in Odoo with ID {new_event_id}")
+        # Add skip_rabbit=True tag
+        ctx = {"context": {"skip_rabbit": True}}
+
+        if op == "create":
+            if dup_id:
+                print("Skipping create; already exists", dup_id)
+            else:
+                new_id = models.execute_kw(
+                    cfg["DATABASE"], uid, cfg["API_KEY"],
+                    "event.event", "create",
+                    [vals],
+                    ctx
+                )
+                print("Created event", new_id)
+
+        elif op == "update":
+            if dup_id:
+                models.execute_kw(
+                    cfg["DATABASE"], uid, cfg["API_KEY"],
+                    "event.event", "write",
+                    [[dup_id], vals],
+                    ctx
+                )
+                print("Updated event", dup_id)
+            else:
+                # fallback to create if no existing record
+                new_id = models.execute_kw(
+                    cfg["DATABASE"], uid, cfg["API_KEY"],
+                    "event.event", "create",
+                    [vals],
+                    ctx
+                )
+                print("Created event", new_id)
+
+        elif op == "delete":
+            if dup_id:
+                models.execute_kw(
+                    cfg["DATABASE"], uid, cfg["API_KEY"],
+                    "event.event", "unlink",
+                    [[dup_id]],
+                    ctx
+                )
+                print("Deleted event", dup_id)
+            else:
+                print("Nothing to delete for UID", vals["external_uid"])
+
         else:
-            print(f"Ignored operation: {operation}")
+            print("Ignored unknown operation:", op)
+
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+
     except Exception as e:
-        print(f"Error processing event message: {e}")
+        print("Error processing message:", e)
 
 
-channel.basic_consume(queue=queue_main, on_message_callback=process_message, auto_ack=True)
-print("Waiting for event messages...")
-channel.start_consuming()
+ch.basic_consume(queue=queue, on_message_callback=process_message, auto_ack=False)
+print("Waiting for event messages…")
+ch.start_consuming()

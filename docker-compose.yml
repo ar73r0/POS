@@ -123,6 +123,26 @@ services:
       timeout: 5s
       retries: 3
       start_period: 15s
+    
+  consumer_event:
+    container_name: consumer_event
+    build:
+      context: ./consumers
+    command: python consumer_event.py
+    working_dir: /app
+    volumes:
+      - ./consumers:/app
+      - ./.env:/app/.env:ro
+    restart: unless-stopped
+    depends_on:
+      - web
+      - db
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f consumer_event.py >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
 
   heartbeat-consumer:
     <<: *heartbeat-template
