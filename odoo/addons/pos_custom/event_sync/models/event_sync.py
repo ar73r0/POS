@@ -139,6 +139,8 @@ class EventSync(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         # run the actual create under skip_rabbit so _event_uid() won't loop
+        # skip rabbit anders wordt event dat consumer aanmaakt ook nog is geplaatst op rabbit door module.
+        # moet wel in consumer meegegeven worden zodat producer dit ziet.
         records = super(EventSync, self.with_context(skip_rabbit=True)).create(
             vals_list
         )
