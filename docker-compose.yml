@@ -153,6 +153,16 @@ services:
       - CONTAINER_NAME=consumer_user
       - TARGET_CONTAINER=consumer_user
 
+  heartbeat-consumer-event:
+    <<: *heartbeat-template
+    container_name: hb-consumer-event
+    depends_on:
+      - consumer_event
+    environment:
+      - SENDER_NAME=pos
+      - CONTAINER_NAME=consumer_event
+      - TARGET_CONTAINER=consumer_event
+
 volumes:
   odoo_data:
   odoo_db_data:
