@@ -132,7 +132,6 @@ services:
     working_dir: /app
     volumes:
       - ./consumers:/app
-      - ./.env:/app/.env:ro
     restart: unless-stopped
     depends_on:
       - web
