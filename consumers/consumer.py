@@ -101,11 +101,16 @@ def process_message(ch, method, properties, body):
  
             if partner_ids:
                 update_fields = {
-                    'name': f"{first_name}_{last_name}",
+                    'name': f"{first_name} {last_name}",
                     'email': email,
                     'title': title
                 }
-                models.execute_kw(db, uid, PASSWORD, 'res.partner', 'write', [partner_ids, update_fields])
+                models.execute_kw(
+                    db, uid, PASSWORD,
+                    'res.partner', 'write',
+                    [partner_ids, update_fields],
+                    {'context': {'skip_rabbit': True}}
+                )
                 print(f"Updated user {ref}.")
             else:
                 print(f"No user found with email {ref}.")
@@ -389,7 +394,7 @@ def process_message(ch, method, properties, body):
                 result = models.execute_kw(
                                     db, uid, PASSWORD,
                                     'res.partner.title', 'search_read',
-                                    [[["shortcut", "=", title]]],
+                                    [[('shortcut', '=', title)]],
                                     {'fields': ['id'], 'limit': 1}
                                 )
 
