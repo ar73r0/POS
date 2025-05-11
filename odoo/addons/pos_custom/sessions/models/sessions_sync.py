@@ -33,52 +33,79 @@ class SessionSync(models.Model):
         uid = f"SE{int(time.time() * 1000)}"
         rec.with_context(skip_rabbit=True).write({"external_uid_session": uid})
         return uid
+    
+#
+def _build_raw_xml(self, operation, rec) -> bytes:
+    root = ET.Element(
+        "attendify",
+        attrib={
+            "xmlns:xsi": "http://www.w3.org/2001/XMLSchema-instance",
+            "xsi:noNamespaceSchemaLocation": "session.xsd",
+        },
+    )
 
-    def _build_raw_xml(self, operation, rec) -> bytes:
-        root = ET.Element("attendify")
-        info = ET.SubElement(root, "info")
-        ET.SubElement(info, "sender").text = "odoo"
-        ET.SubElement(info, "operation").text = operation
+    info = ET.SubElement(root, "info")
+    ET.SubElement(info, "sender").text = "odoo"
+    ET.SubElement(info, "operation").text = operation
 
-        ev = ET.SubElement(root, "event")
-        ET.SubElement(ev, "uid_event").text = self._session_uid(rec)
-        ET.SubElement(ev, "name").text = rec.name or ""
-        ET.SubElement(ev, "start_date").text = (
-            rec.date_begin.isoformat() if rec.date_begin else ""
-        )
-        ET.SubElement(ev, "end_date").text = (
-            rec.date_end.isoformat() if rec.date_end else ""
-        )
+    sess = ET.SubElement(root, "session")
 
-        partner = rec.address_id
-        addr = ET.SubElement(ev, "address")
-        for tag, val in {
-            "street": partner.street if partner else "",
-            "street2": partner.street2 if partner else "",
-            "city": partner.city if partner else "",
-            "zip": partner.zip if partner else "",
-            "country": partner.country_id.name if partner and partner.country_id else "",
-        }.items():
-            ET.SubElement(addr, tag).text = val or ""
+    # Uniek gegenereerde ID (intern)
+    ET.SubElement(sess, "id").text = f"sess_{int(time.time() * 1000)}"
 
-        ET.SubElement(ev, "description")
-        ET.SubElement(ev, "max_attendees").text = str(rec.seats_max or 0)
+    # UID zoals bij gebruikers (herbruikbare identifier)
+    ET.SubElement(sess, "uid").text = self._session_uid(rec)
 
-        return ET.tostring(root, encoding="utf-8")
+    # Event ID waar deze sessie aan gekoppeld is
+    ET.SubElement(sess, "event_id").text = rec.event_id.external_uid_session or ""
 
-    def _build_xml(self, operation, rec) -> str:
-        raw = self._build_raw_xml(operation, rec)
-        pretty = self._pretty(raw)
+    # Titel van de sessie
+    ET.SubElement(sess, "title").text = rec.name or ""
 
-        desc = rec.description or ""
-        cdata = f"<![CDATA[{desc}]]>"
-        pretty = re.sub(
-            r"<description>\s*</description>",
-            f"<description>{cdata}</description>",
-            pretty,
-            count=1,
-        )
-        return pretty
+    # Beschrijving (placeholder - later in CDATA gezet)
+    ET.SubElement(sess, "description")
+
+    # Datum
+    session_date = rec.date_begin.date().isoformat() if rec.date_begin else ""
+    ET.SubElement(sess, "date").text = session_date
+
+    # Starttijd en eindtijd als strings
+    ET.SubElement(sess, "start_time").text = (
+        rec.date_begin.strftime("%H:%M") if rec.date_begin else ""
+    )
+    ET.SubElement(sess, "end_time").text = (
+        rec.date_end.strftime("%H:%M") if rec.date_end else ""
+    )
+
+    # Locatie (mag je vervangen door exact veld uit jouw model)
+    ET.SubElement(sess, "location").text = rec.location or ""
+
+    # Max aantal deelnemers
+    ET.SubElement(sess, "max_attendees").text = str(rec.seats_max or 0)
+
+    # Spreker
+    speaker = ET.SubElement(sess, "speaker")
+    ET.SubElement(speaker, "name").text = rec.speaker_name or ""
+    ET.SubElement(speaker, "bio").text = rec.speaker_bio or ""
+
+    return ET.tostring(root, encoding="utf-8")
+
+
+def _build_xml(self, operation, rec) -> str:
+    raw = self._build_raw_xml(operation, rec)
+    pretty = self._pretty(raw)
+
+    desc = rec.description or ""
+    cdata = f"<![CDATA[{desc}]]>"
+    pretty = re.sub(
+        r"<description>\s*</description>",
+        f"<description>{cdata}</description>",
+        pretty,
+        count=1,
+    )
+    return pretty
+
+    #
 
     def _send_session_to_rabbitmq(self, operation):
         host, user, pw = (
@@ -102,7 +129,7 @@ class SessionSync(models.Model):
             ch = conn.channel()
 
             # Gebruik nog de event exchange/queue/routing_key zoals je zei
-            exchange, queue, routing = "event", "pos.event", "event.register"
+            exchange, queue, routing = "session", "pos.event", "event.register"
             ch.exchange_declare(exchange, "direct", durable=True)
             ch.queue_declare(queue, durable=True)
             ch.queue_bind(queue=queue, exchange=exchange, routing_key=routing)
