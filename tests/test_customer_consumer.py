@@ -32,7 +32,7 @@ class TestCreateCustomerConsumer(unittest.TestCase):
         </attendify>"""
 
     def test_parse_attendify_user(self):
-        spec = importlib.util.spec_from_file_location("create_customer_consumer", "create_customer_consumer.py")
+        spec = importlib.util.spec_from_file_location("create_customer_consumer", "../create_customer_consumer.py")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 
@@ -51,7 +51,7 @@ class TestCreateCustomerConsumer(unittest.TestCase):
 
     @patch("pika.BlockingConnection")
     def test_customer_callback_create_user(self, mock_conn):
-        spec = importlib.util.spec_from_file_location("create_customer_consumer", "create_customer_consumer.py")
+        spec = importlib.util.spec_from_file_location("create_customer_consumer", "../create_customer_consumer.py")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 
@@ -90,7 +90,7 @@ class TestDeleteCustomerConsumer(unittest.TestCase):
     @patch("pika.BlockingConnection")
     def test_callback_valid_json(self, mock_conn, mock_print):
         import importlib.util
-        spec = importlib.util.spec_from_file_location("delete_customer_consumer", "delete_customer_consumer.py")
+        spec = importlib.util.spec_from_file_location("delete_customer_consumer", "../delete_customer_consumer.py")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 
@@ -107,7 +107,7 @@ class TestDeleteCustomerConsumer(unittest.TestCase):
     @patch("pika.BlockingConnection")
     def test_callback_invalid_json(self, mock_conn, mock_print):
         import importlib.util
-        spec = importlib.util.spec_from_file_location("delete_customer_consumer", "delete_customer_consumer.py")
+        spec = importlib.util.spec_from_file_location("delete_customer_consumer", "../delete_customer_consumer.py")
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
 
@@ -122,7 +122,7 @@ class TestDeleteCustomerConsumer(unittest.TestCase):
 
 class TestGetConsumerInfo(unittest.TestCase):
     def test_customer_info_fetch(self):
-        spec = importlib.util.spec_from_file_location("get_consumer_info", "get_consumer_info.py")
+        spec = importlib.util.spec_from_file_location("get_consumer_info", "../get_consumer_info.py")
         module = importlib.util.module_from_spec(spec)
 
         with patch("xmlrpc.client.ServerProxy") as mock_proxy, \
