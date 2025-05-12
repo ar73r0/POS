@@ -126,19 +126,22 @@ class ResPartner(models.Model):
     # CRUD overrides
     @api.model_create_multi
     def create(self, vals_list):
-        # Zorg dat `ref` gevuld is vóórdat super() aanmaakt, om duplicates te vermijden
+        # Als skip_rabbit in context zit → gewoon super() en klaar
+        if self.env.context.get("skip_rabbit"):
+            return super(ResPartner, self).create(vals_list)
+
+        # Vul ref voor duplicates
         for v in vals_list:
             if not v.get("ref"):
                 v["ref"] = f"OD{int(time.time() * 1000)}"
 
-        # Maak partners zonder Rabbit‑lus
         partners = super(ResPartner, self.with_context(skip_rabbit=True)).create(vals_list)
-        partners = partners.with_context(skip_rabbit=False)  # Cleanup flag
 
-        # Eén create‑boodschap per record
+        # Stuur Rabbit-bericht
         for p in partners:
             _logger.info("Triggering RabbitMQ create for partner %s", p.id)
             p._send_to_rabbitmq("create")
+
         return partners
 
     def write(self, vals):
