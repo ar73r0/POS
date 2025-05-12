@@ -16,8 +16,10 @@ ODOO_DB    = config['DATABASE']
 ODOO_EMAIL = config['EMAIL']
 ODOO_API   = config['API_KEY']
 
+ODOO_API_KEY = ODOO_API
+
 common = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/common")
-ODOO_UID = common.authenticate(ODOO_DB, ODOO_EMAIL, ODOO_API, {})
+ODOO_UID = common.authenticate(ODOO_DB, ODOO_EMAIL, ODOO_API_KEY, {})
 models   = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/object")
 
 # -- RabbitMQ ------------------------------------------------------- #
@@ -311,7 +313,7 @@ def get_country_id(country_name: str):
         ODOO_DB, ODOO_UID, ODOO_API_KEY,
         'res.country', 'search_read',
         [[['code', '=', code]]],
-        {'fields': ['id'], 'limit': 1}
+        {'fields': ['id'], 'limit': 1, 'context': {'skip_rabbit': True}}
     )
     return res[0]['id'] if res else False
 
@@ -321,7 +323,7 @@ def get_title_id(shortcut: str):
         ODOO_DB, ODOO_UID, ODOO_API_KEY,
         'res.partner.title', 'search_read',
         [[('shortcut', '=', safe(shortcut))]],
-        {'fields': ['id'], 'limit': 1}
+        {'fields': ['id'], 'limit': 1, 'context': {'skip_rabbit': True}}
     )
     return res[0]['id'] if res else False
 
@@ -335,7 +337,7 @@ def get_or_create_company_id(company_vals: dict):
         ODOO_DB, ODOO_UID, ODOO_API_KEY,
         'res.partner', 'search_read',
         [domain],
-        {'fields': ['id'], 'limit': 1}
+        {'fields': ['id'], 'limit': 1, 'context': {'skip_rabbit': True}}
     )
     if existing:
         return existing[0]['id']
@@ -343,19 +345,23 @@ def get_or_create_company_id(company_vals: dict):
     return models.execute_kw(
         ODOO_DB, ODOO_UID, ODOO_API_KEY,
         'res.partner', 'create',
-        [company_vals]
+        [company_vals],
+        {'context': {'skip_rabbit': True}}
     )
 
 
 def delete_user(ref: str):
     partner_ids = models.execute_kw(
-        ODOO_DB, ODOO_UID, ODOO_API,
+        ODOO_DB, ODOO_UID, ODOO_API_KEY,
         'res.partner', 'search', [[['ref', '=', ref]]],
-        {'context': {'active_test': False}}
+        {'context': {'active_test': False, 'skip_rabbit': True}}
     )
     if partner_ids:
-        models.execute_kw(ODOO_DB, ODOO_UID, ODOO_API,
-                          'res.partner', 'unlink', [partner_ids])
+        models.execute_kw(
+            ODOO_DB, ODOO_UID, ODOO_API_KEY,
+            'res.partner', 'unlink', [partner_ids],
+            {'context': {'skip_rabbit': True}}
+        )
         logging.info("Customer %s deleted", ref)
     else:
         logging.info("Customer %s not found (nothing to delete)", ref)
@@ -400,9 +406,9 @@ def _handle_update(parsed):
         raise ValueError('UID missing in update message')
 
     partner_ids = models.execute_kw(
-        ODOO_DB, ODOO_UID, ODOO_API,
+        ODOO_DB, ODOO_UID, ODOO_API_KEY,
         'res.partner', 'search', [[['ref', '=', ref]]],
-        {'context': {'active_test': False}}
+        {'context': {'active_test': False, 'skip_rabbit': True}}
     )
     if not partner_ids:
         logging.info("Partner %s not found (update ignored)", ref)
@@ -413,7 +419,7 @@ def _handle_update(parsed):
         'email': safe(user.get('email')),
     }
 
-    # NEW: wachtwoordhash updaten ALS er in het XML-bericht eentje zit
+    # wachtwoordhash updaten ALS er in het XML-bericht eentje zit
     pw_hash = safe(user.get('password'))
     if pw_hash:
         update_vals['integration_pw_hash'] = pw_hash
@@ -423,7 +429,7 @@ def _handle_update(parsed):
         update_vals['title'] = title_id
 
     models.execute_kw(
-        ODOO_DB, ODOO_UID, ODOO_API,
+        ODOO_DB, ODOO_UID, ODOO_API_KEY,
         'res.partner', 'write', [partner_ids, update_vals],
         {'context': {'skip_rabbit': True}}
     )
@@ -437,9 +443,9 @@ def _handle_create(parsed):
         raise ValueError('UID missing in create message')
 
     existing = models.execute_kw(
-        ODOO_DB, ODOO_UID, ODOO_API,
+        ODOO_DB, ODOO_UID, ODOO_API_KEY,
         'res.partner', 'search', [[['ref', '=', ref]]],
-        {'limit': 1}
+        {'limit': 1, 'context': {'skip_rabbit': True}}
     )
     if existing:
         logging.info("User %s already exists (create skipped)", ref)
@@ -493,8 +499,9 @@ def _handle_create(parsed):
         person_vals['parent_id'] = company_id
 
     partner_id = models.execute_kw(
-        ODOO_DB, ODOO_UID, ODOO_API,
-        'res.partner', 'create', [person_vals]
+        ODOO_DB, ODOO_UID, ODOO_API_KEY,
+        'res.partner', 'create', [person_vals],
+        {'context': {'skip_rabbit': True}}
     )
     logging.info("Created user %s (ID %s)", ref, partner_id)
 
@@ -519,7 +526,8 @@ def _handle_create(parsed):
         invoice_id = models.execute_kw(
             ODOO_DB, ODOO_UID, ODOO_API_KEY,
             'res.partner', 'create',
-            [invoice_vals]
+            [invoice_vals],
+            {'context': {'skip_rabbit': True}}
         )
         logging.info("Created invoice address for %s (ID %s)", uid_value, invoice_id)
 
