@@ -71,6 +71,46 @@ HAS_FEE   = model_has_field("event.event",   "entrance_fee")
 HAS_GCID  = model_has_field("event.event",   "gcid")
 HAS_LOC_TXT = model_has_field("event.event", "location_text")  # optioneel char-veld
 
+# ─────────────────────────────────────────────────────────────
+# HELPER: product.template aanmaken voor event
+# ─────────────────────────────────────────────────────────────
+def find_or_create_event_product(ev):
+    title = ev.get("title")
+    uid = ev.get("uid")
+    gcid = ev.get("gcid")
+    fee = float(ev.get("entrance_fee") or "0.0")
+    default_code = uid or gcid or title or "event"
+
+    existing = models.execute_kw(
+        cfg["DATABASE"], uid, cfg["API_KEY"],
+        "product.template", "search_read",
+        [[("default_code", "=", default_code)]],
+        {"limit": 1, "fields": ["id", "name"]}
+    )
+    if existing:
+        print(f"🔁 Product already exists for event UID={default_code}: {existing[0]['name']}")
+        return existing[0]["id"]
+
+    new_id = models.execute_kw(
+        cfg["DATABASE"], uid, cfg["API_KEY"],
+        "product.template", "create",
+        [{
+            "name": title or "Unnamed Event",
+            "type": "service",
+            "default_code": default_code,
+            "list_price": fee,
+            "sale_ok": True,
+            "purchase_ok": False,
+            "description_sale": (ev.get("description") or "") + "\nLocation: " + (ev.get("location") or "")
+        }]
+    )
+    print(f"✅ Product created for event UID={default_code}, id={new_id}")
+    return new_id
+
+
+
+
+
 # ────────────────────────────────────────────────────────────────────────
 # HELPER: ticket-product zoeken / aanmaken
 # ────────────────────────────────────────────────────────────────────────
@@ -160,6 +200,9 @@ def handle_event(ev, op):
             cfg["DATABASE"], uid, cfg["API_KEY"],
             "event.event", "create", [vals], ctx)
         print("event created  id=%s" % new_id)
+        
+        # create product for this event
+        find_or_create_event_product(ev)
 
         # ticket aanmaken als entrance_fee > 0
         fee = vals.get("entrance_fee", 0.0)
