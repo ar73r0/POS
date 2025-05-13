@@ -81,32 +81,36 @@ def find_or_create_event_product(ev):
     fee = float(ev.get("entrance_fee") or "0.0")
     default_code = uid or gcid or title or "event"
 
-    existing = models.execute_kw(
-        cfg["DATABASE"], uid, cfg["API_KEY"],
-        "product.template", "search_read",
-        [[("default_code", "=", default_code)]],
-        {"limit": 1, "fields": ["id", "name"]}
-    )
-    if existing:
-        print(f"🔁 Product already exists for event UID={default_code}: {existing[0]['name']}")
-        return existing[0]["id"]
+    print(f"[DEBUG] Trying to create product for: {default_code}, fee: {fee}")
 
-    new_id = models.execute_kw(
-        cfg["DATABASE"], uid, cfg["API_KEY"],
-        "product.template", "create",
-        [{
-            "name": title or "Unnamed Event",
-            "type": "service",
-            "default_code": default_code,
-            "list_price": fee,
-            "sale_ok": True,
-            "purchase_ok": False,
-            "description_sale": (ev.get("description") or "") + "\nLocation: " + (ev.get("location") or "")
-        }]
-    )
-    print(f"✅ Product created for event UID={default_code}, id={new_id}")
-    return new_id
+    try:
+        existing = models.execute_kw(
+            cfg["DATABASE"], uid, cfg["API_KEY"],
+            "product.template", "search_read",
+            [[("default_code", "=", default_code)]],
+            {"limit": 1, "fields": ["id", "name"]}
+        )
+        if existing:
+            print(f"🔁 Product already exists for event UID={default_code}: {existing[0]['name']}")
+            return existing[0]["id"]
 
+        new_id = models.execute_kw(
+            cfg["DATABASE"], uid, cfg["API_KEY"],
+            "product.template", "create",
+            [{
+                "name": title or "Unnamed Event",
+                "type": "service",
+                "default_code": default_code,
+                "list_price": fee,
+                "sale_ok": True,
+                "purchase_ok": False,
+                "description_sale": (ev.get("description") or "") + "\nLocation: " + (ev.get("location") or "")
+            }]
+        )
+        print(f"✅ Product created for event UID={default_code}, id={new_id}")
+        return new_id
+    except Exception as e:
+        print(f"Failed to create product: {str(e)}")
 
 
 
@@ -114,12 +118,14 @@ def find_or_create_event_product(ev):
 # ────────────────────────────────────────────────────────────────────────
 # HELPER: ticket-product zoeken / aanmaken
 # ────────────────────────────────────────────────────────────────────────
-def find_or_create_ticket_product():
+def find_or_create_ticket_product(ev):
     """Return product_id for generic 'Event Registration' service product."""
+    title = ev.get("title")
+
     prod = models.execute_kw(
         cfg["DATABASE"], uid, cfg["API_KEY"],
         "product.product", "search_read",
-        [[("name", "=", "Event Registration")]],
+        [[("name", "=", title)]],
         {"limit": 1, "fields": ["id"]}
     )
     if prod:
@@ -127,10 +133,10 @@ def find_or_create_ticket_product():
     return models.execute_kw(
         cfg["DATABASE"], uid, cfg["API_KEY"],
         "product.product", "create",
-        [{"name": "Event Registration", "type": "service"}]
+        [{"name": title, "type": "service"}]
     )
 
-PRODUCT_ID = find_or_create_ticket_product()
+
 
 # ────────────────────────────────────────────────────────────────────────
 # MESSAGE HANDLER
@@ -200,7 +206,8 @@ def handle_event(ev, op):
             cfg["DATABASE"], uid, cfg["API_KEY"],
             "event.event", "create", [vals], ctx)
         print("event created  id=%s" % new_id)
-        
+
+        PRODUCT_ID = find_or_create_ticket_product(ev)
         # create product for this event
         find_or_create_event_product(ev)
 
