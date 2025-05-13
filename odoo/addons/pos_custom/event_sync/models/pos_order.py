@@ -44,8 +44,8 @@ class PosOrderPublisher(models.Model):
             user     = os.getenv("RABBITMQ_USERNAME")
             password = os.getenv("RABBITMQ_PASSWORD")
             vhost    = os.getenv("RABBITMQ_VHOST")
-            exchange = ""
-            routing_key = ""
+            exchange = "sale.performed"
+            routing_key = "sale"
 
             if not all([host, user, password]):
                 _logger.error("RabbitMQ environment variables missing!")
