@@ -2,7 +2,7 @@
     'name': 'Event Sync with RabbitMQ',
     'version': '1.0',
     'license': 'LGPL-3',
-    'depends': ['event'],
+    'depends': ['event', 'point_of_sale'],
     'author': 'Attendify',
     'category': 'Events',
     'summary': 'Sync events to RabbitMQ on create/update/delete',
