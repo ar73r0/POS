@@ -1,108 +1,56 @@
-import sys
-import os
-import pika
-import json
+# -*- coding: utf-8 -*-
+import logging
 import xmlrpc.client
 import xmltodict
-import xml.etree.ElementTree as ET
+import pika
 from dotenv import dotenv_values
- 
+
+# ------------------------------------------------------------------ #
+# Config
+# ------------------------------------------------------------------ #
 config = dotenv_values()
- 
-url = f"http://{config['ODOO_HOST']}:8069/"
-db = config["DATABASE"]
-USERNAME = config["EMAIL"]
-PASSWORD = config["API_KEY"]
- 
-common = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/common")
-uid = common.authenticate(db, USERNAME, PASSWORD, {})
-models = xmlrpc.client.ServerProxy(f"{url}/xmlrpc/2/object")
- 
-credentials = pika.PlainCredentials(config["RABBITMQ_USERNAME"], config["RABBITMQ_PASSWORD"])
-params = pika.ConnectionParameters(config["RABBITMQ_HOST"], 30001, config["RABBITMQ_VHOST"], credentials)
-connection = pika.BlockingConnection(params)
-channel = connection.channel()
- 
-exchange_main = 'user-management'
-queue_main = 'pos.user'
- 
- 
-exchange_monitoring = 'monitoring'
-routing_key_monitoring_success = 'monitoring.success'
-routing_key_monitoring_failure = 'monitoring.failure'
-queue_monitoring = 'monitoring'
- 
 
-def delete_user(email):
-    partner_ids = models.execute_kw(
-        db, uid, PASSWORD,
-        'res.partner', 'search',
-        [[['email', 'ilike', email]]],
-        {'context': {'active_test': False}}
+# -- Odoo ----------------------------------------------------------- #
+ODOO_URL   = f"http://{config['ODOO_HOST']}:8069/"
+ODOO_DB    = config['DATABASE']
+ODOO_EMAIL = config['EMAIL']
+ODOO_API   = config['API_KEY']
+
+ODOO_API_KEY = ODOO_API
+
+common = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/common")
+ODOO_UID = common.authenticate(ODOO_DB, ODOO_EMAIL, ODOO_API_KEY, {})
+models   = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/object")
+
+# -- RabbitMQ ------------------------------------------------------- #
+RABBIT_PARAMS = pika.ConnectionParameters(
+    host=config['RABBITMQ_HOST'],
+    port=int(config['RABBITMQ_PORT']),
+    virtual_host=config['RABBITMQ_VHOST'],
+    credentials=pika.PlainCredentials(
+        config['RABBITMQ_USERNAME'],
+        config['RABBITMQ_PASSWORD']
     )
-    if partner_ids:
-        models.execute_kw(db, uid, PASSWORD, 'res.partner', 'unlink', [partner_ids])
-        print(f"Customer {email} deleted successfully.")
-    else:
-        print(f"Customer {email} not found.")
- 
+)
+EXCHANGE_MAIN = 'user-management'
+QUEUE_MAIN    = 'pos.user'
 
 
- 
-def process_message(ch, method, properties, body):
-    try:
-        routing_key = method.routing_key
- 
-        if routing_key == "user.delete":
-            try:
-                print("Body (raw):", body)
-                print("Body (decoded):", body.decode('utf-8', errors='replace'))
- 
-                data = xmltodict.parse(body.decode("utf-8"))
-                email = data['attendify']['user'].get("email")
-                if email:
-                    delete_user(email)
-                else:
-                    print("Invalid delete request format.")
-            except Exception as e:
-                print(f"Error parsing XML in delete message: {e}")
- 
-        elif routing_key == "user.update":
-            root = ET.fromstring(body)
-            operation = root.find('info/operation').text.strip().lower()
- 
-            if operation != 'user.update':
-                print("Operation mismatch in user.update message")
-                return
- 
-            email = root.find('user/email').text.strip()
-            first_name = root.find('user/first_name').text.strip()
-            last_name = root.find('user/last_name').text.strip()
-            title = root.find('user/title').text.strip() if root.find('user/title') is not None else ""
- 
-            partner_ids = models.execute_kw(
-                db, uid, PASSWORD,
-                'res.partner', 'search',
-                [[('email', 'ilike', email)]],
-                {'context': {'active_test': False}}
-            )
- 
-            if partner_ids:
-                update_fields = {
-                    'name': f"{first_name} {last_name}",
-                    'email': email,
-                    'title': title
-                }
-                models.execute_kw(db, uid, PASSWORD, 'res.partner', 'write', [partner_ids, update_fields])
-                print(f"Updated user {email}.")
-            else:
-                print(f"No user found with email {email}.")
- 
-        elif routing_key == "user.create":
+# Utility helpers
 
-            def get_country_id(country):
-                    
-                country_name_to_code = {
+def safe(value: str) -> str:
+    """Stript een string, retourneert altijd een (mogelijke lege) string."""
+    return (value or "").strip()
+
+
+def bool_from_str(value: str) -> bool:
+    """'true'/'True' → True, alles andere → False"""
+    return safe(value).lower() == 'true'
+
+
+# Statische mapping landnaam → ISO‑2 code
+from typing import Dict
+COUNTRY_NAME_TO_CODE: Dict[str, str] = {
                         "Afghanistan": "AF",
                         "Albania": "AL",
                         "Algeria": "DZ",
@@ -355,238 +303,258 @@ def process_message(ch, method, properties, body):
                         "Åland Islands": "AX"
                     }
 
-                country_code = country_name_to_code.get(country.capitalize())
-                    
-                
-
-                if country_code:
-                        result = models.execute_kw(
-                            db, uid, PASSWORD,
-                            'res.country', 'search_read',
-                            [[['code', '=', country_code]]],
-                            {'fields': ['id'], 'limit': 1}
-                        )
-
-                        if result:
-                            country_id = result[0]['id']
-
-                
-                return country_id
-
-            def get_title_id(title):
-                result = models.execute_kw(
-                                    db, uid, PASSWORD,
-                                    'res.partner.title', 'search_read',
-                                    [[["shortcut", "=", title]]],
-                                    {'fields': ['id'], 'limit': 1}
-                                )
-
-                if result:
-                    return result[0]['id']
-                return None
-
-            def get_or_create_company_id(models, db, uid, password, company_data):
-                domain = [['name', '=', company_data['name']], ['is_company', '=', True]]
-                if company_data.get('vat'):
-                    domain.append(['vat', '=', company_data['vat']])
-
-                existing = models.execute_kw(
-                                    db, uid, password,
-                                    'res.partner', 'search_read',
-                                    [domain],
-                                    {'fields': ['id'], 'limit': 1}
-                                )
-
-                if existing:
-                    return existing[0]['id']
-
-                return models.execute_kw(
-                                    db, uid, password,
-                                    'res.partner', 'create',
-                                    [company_data]
-                                )
+        
+def get_country_id(country_name: str):
+    """Geeft Odoo country_id terug of False als niet gevonden."""
+    code = COUNTRY_NAME_TO_CODE.get(safe(country_name).title())
+    if not code:
+        return False
+    res = models.execute_kw(
+        ODOO_DB, ODOO_UID, ODOO_API_KEY,
+        'res.country', 'search_read',
+        [[['code', '=', code]]],
+        {'fields': ['id'], 'limit': 1, 'context': {'skip_rabbit': True}}
+    )
+    return res[0]['id'] if res else False
 
 
+def get_title_id(shortcut: str):
+    res = models.execute_kw(
+        ODOO_DB, ODOO_UID, ODOO_API_KEY,
+        'res.partner.title', 'search_read',
+        [[('shortcut', '=', safe(shortcut))]],
+        {'fields': ['id'], 'limit': 1, 'context': {'skip_rabbit': True}}
+    )
+    return res[0]['id'] if res else False
 
 
+def get_or_create_company_id(company_vals: dict):
+    domain = [['name', '=', company_vals['name']], ['is_company', '=', True]]
+    if company_vals.get('vat'):
+        domain.append(['vat', '=', company_vals['vat']])
 
-            try:
-                
-                parsed = xmltodict.parse(body.decode('utf-8'))
-                    
-                    
-                operation = parsed["attendify"]["info"]["operation"].strip().lower()
-                sender = parsed["attendify"]["info"]["sender"]
+    existing = models.execute_kw(
+        ODOO_DB, ODOO_UID, ODOO_API_KEY,
+        'res.partner', 'search_read',
+        [domain],
+        {'fields': ['id'], 'limit': 1, 'context': {'skip_rabbit': True}}
+    )
+    if existing:
+        return existing[0]['id']
 
-                user_data = parsed["attendify"]["user"]
-
-                
-            
-                address = user_data.get("address")
-
-                if address:
-                    
-                    street = address["street"]
-                    number = address["number"]
-                    bus = address.get("bus_number", "")
-                    street2 = f"{number} Bus {bus}"
-                    city = address["city"]
-                    zip = address["postal_code"]
-                    country = address["country"].strip().title()
-                    country_id = get_country_id(country)
-                
-
-                email = user_data["email"]
-
-                title = user_data["title"]
-
-                if title:
-                    title_id = get_title_id(title)
+    return models.execute_kw(
+        ODOO_DB, ODOO_UID, ODOO_API_KEY,
+        'res.partner', 'create',
+        [company_vals],
+        {'context': {'skip_rabbit': True}}
+    )
 
 
+def delete_user(ref: str):
+    partner_ids = models.execute_kw(
+        ODOO_DB, ODOO_UID, ODOO_API_KEY,
+        'res.partner', 'search', [[['ref', '=', ref]]],
+        {'context': {'active_test': False, 'skip_rabbit': True}}
+    )
+    if partner_ids:
+        models.execute_kw(
+            ODOO_DB, ODOO_UID, ODOO_API_KEY,
+            'res.partner', 'unlink', [partner_ids],
+            {'context': {'skip_rabbit': True}}
+        )
+        logging.info("Customer %s deleted", ref)
+    else:
+        logging.info("Customer %s not found (nothing to delete)", ref)
 
-                invoice_data = user_data.get("payment_details", {}).get("facturation_address", {})
-                invoice_address = None
+# ------------------------------------------------------------------ #
+# Message handler
+# ------------------------------------------------------------------ #
+def process_message(ch, method, properties, body):
+    try:
+        parsed = xmltodict.parse(body.decode())
+        info   = parsed.get('attendify', {}).get('info', {})
+        op     = safe(info.get('operation')).lower()
 
-                if invoice_data:
-                    inv_street = invoice_data["street"]
-                    inv_number = invoice_data["number"]
-                    inv_bus = invoice_data.get("company_bus_number", "")
-                    inv_street2 = f"{inv_number} Bus {inv_bus}".strip()
-                    inv_city = invoice_data["city"]
-                    inv_zip = invoice_data["postal_code"]
-                    inv_country = invoice_data["country"].strip().title()
-                    inv_country_id = get_country_id(inv_country)
-
-                    invoice_address = {
-                        "type": "invoice",
-                        "name": f"{user_data['first_name']}_{user_data['last_name']} (Invoice Address)",
-                        "email": email,
-                        "phone": user_data.get("phone_number"),
-                        "street": inv_street,
-                        "street2": inv_street2,
-                        "city": inv_city,
-                        "zip": inv_zip,
-                        "country_id": inv_country_id
-                        }
-                        
-
-
-                from_company = user_data.get("from_company", "false").strip().lower()
-                
-                    
-
-                if from_company == 'true':
-                        company_raw = user_data["company"]
-                        company_name = company_raw.get("name", "").strip()
-                        company_vat = company_raw.get("VAT_number", "").strip()
-                        company_address = company_raw.get("address", {})
-
-                        company_street = company_address.get("street", "").strip()
-                        company_number = company_address.get("number", "").strip()
-                        company_street2 = company_number
-                        company_city = company_address.get("city", "").strip()
-                        company_zip = company_address.get("postal_code", "").strip()
-                        company_country = company_address.get("country", "").strip().title()
-                        company_country_id = get_country_id(company_country)
-
-                        company_data = {
-                            "name": company_name,
-                            "vat": company_vat,
-                            "street": company_street,
-                            "street2": company_street2,
-                            "city": company_city,
-                            "zip": company_zip,
-                            "country_id": company_country_id,
-                            "is_company": True,
-                            "customer_rank": 1,
-                            "company_type": "company"
-                        }
-                        
-                else:
-                    company_data = None
-
-                    
-                odoo_user = {
-                        "name": f"{user_data['first_name']}_{user_data['last_name']}",
-                        "email": user_data.get("email"),
-                        "customer_rank": 1,
-                        "is_company": False,
-                        "company_type": "person"
-                    }
-                
-                if address:
-                    odoo_user["street"] = street
-                    odoo_user["street2"] = street2
-                    odoo_user["city"] = city
-                    odoo_user["zip"] = zip
-                    odoo_user["country_id"] = country_id
-                
-
-               
-                
-                if user_data.get("phone_number"):
-                      odoo_user["phone"] = user_data["phone_number"]
-                
-                if title:
-                      odoo_user["title"] = title_id
-
-                if user_data.get("id"):
-                      odoo_user["ref"] = user_data["id"]
-                    
-                
-
-            except Exception as e:
-                print(f"XML parse error: {e}")
-                    
-
-            existing_user = models.execute_kw(
-                    db, uid, PASSWORD,
-                    'res.partner', 'search_read',
-                    [[['email', '=', odoo_user['email']]]],
-                    {'fields': ['id'], 'limit': 1}
-                )
-
-            if existing_user:
-                    print(f"User {email} already exists with ID: {existing_user[0]['id']}")
-                    return
-
-
-            if company_data:
-                    company_id = get_or_create_company_id(models, db, uid, PASSWORD, company_data)
-                    odoo_user["parent_id"] = company_id
-                    odoo_user["company_type"] = "person"
-                    odoo_user["is_company"] = False
-                
-                
-            new_partner_id = models.execute_kw(
-                    db, uid, PASSWORD,  
-                    'res.partner', 'create',  
-                    [odoo_user]
-                )
-
-            print(f"Registered new user: {email} (ID {new_partner_id})")
-
-            if invoice_address:
-                    invoice_address["parent_id"] = new_partner_id
-                    invoice_id = models.execute_kw(
-                        db, uid, PASSWORD,
-                        'res.partner', 'create',
-                        [invoice_address]
-                    )
-                    print(f"Invoice address ID: {invoice_id}")
-
-
+        if op == 'delete':
+            _handle_delete(parsed)
+        elif op == 'update':
+            _handle_update(parsed)
+        elif op == 'create':
+            _handle_create(parsed)
         else:
-            print(f"Unknown routing key: {routing_key}")
- 
-    except Exception as e:
-        print(f"Error processing message: {e}")
- 
- 
-channel.basic_consume(queue=queue_main, on_message_callback=process_message, auto_ack=True)
-print("Waiting for user messages...")
-channel.start_consuming()
- 
+            raise ValueError(f"Unknown operation: {op}")
 
- 
+        ch.basic_ack(delivery_tag=method.delivery_tag)
+    except Exception as exc:
+        logging.error("Error processing message: %s", exc, exc_info=True)
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
+
+# ------------------------------------------------------------------ #
+# Handlers
+# ------------------------------------------------------------------ #
+def _handle_delete(parsed):
+    uid_value = safe(parsed['attendify']['user'].get('uid'))
+    if not uid_value:
+        raise ValueError('UID missing in delete message')
+    delete_user(uid_value)
+
+
+def _handle_update(parsed):
+    user = parsed['attendify']['user']
+    ref  = safe(user.get('uid'))
+    if not ref:
+        raise ValueError('UID missing in update message')
+
+    partner_ids = models.execute_kw(
+        ODOO_DB, ODOO_UID, ODOO_API_KEY,
+        'res.partner', 'search', [[['ref', '=', ref]]],
+        {'context': {'active_test': False, 'skip_rabbit': True}}
+    )
+    if not partner_ids:
+        logging.info("Partner %s not found (update ignored)", ref)
+        return
+
+    update_vals = {
+        'name':  f"{safe(user.get('first_name'))} {safe(user.get('last_name'))}",
+        'email': safe(user.get('email')),
+    }
+
+    # wachtwoordhash updaten ALS er in het XML-bericht eentje zit
+    pw_hash = safe(user.get('password'))
+    if pw_hash:
+        update_vals['integration_pw_hash'] = pw_hash
+
+    title_id = get_title_id(user.get('title'))
+    if title_id:
+        update_vals['title'] = title_id
+
+    models.execute_kw(
+        ODOO_DB, ODOO_UID, ODOO_API_KEY,
+        'res.partner', 'write', [partner_ids, update_vals],
+        {'context': {'skip_rabbit': True}}
+    )
+    logging.info("Updated user %s", ref)
+
+
+def _handle_create(parsed):
+    user = parsed['attendify']['user']
+    ref  = safe(user.get('uid'))
+    if not ref:
+        raise ValueError('UID missing in create message')
+
+    existing = models.execute_kw(
+        ODOO_DB, ODOO_UID, ODOO_API_KEY,
+        'res.partner', 'search', [[['ref', '=', ref]]],
+        {'limit': 1, 'context': {'skip_rabbit': True}}
+    )
+    if existing:
+        logging.info("User %s already exists (create skipped)", ref)
+        return
+
+    addr = user.get('address', {}) or {}
+    person_vals = {
+        'ref':          ref,
+        'is_company':   False,
+        'customer_rank': 1,
+        'company_type': 'person',
+        'name':         f"{safe(user.get('first_name'))} {safe(user.get('last_name'))}",
+        'email':        safe(user.get('email')),
+        'phone':        safe(user.get('phone_number')),
+        'street':       safe(addr.get('street')),
+        'street2':      f"{safe(addr.get('number'))} Bus {safe(addr.get('bus_number'))}".strip(),
+        'city':         safe(addr.get('city')),
+        'zip':          safe(addr.get('postal_code')),
+        # NEW: hash van het XML-bericht opslaan
+        'integration_pw_hash': safe(user.get('password')),
+    }
+
+    country_id = get_country_id(addr.get('country'))
+    if country_id:
+        person_vals['country_id'] = country_id
+
+    title_id = get_title_id(user.get('title'))
+    if title_id:
+        person_vals['title'] = title_id
+
+    # -- Bedrijf optioneel --
+    company_id = False
+    if bool_from_str(user.get('from_company')):
+        comp      = user.get('company', {}) or {}
+        comp_addr = comp.get('address', {}) or {}
+        company_vals = {
+            'name':  safe(comp.get('name')),
+            'vat':   safe(comp.get('VAT_number')),
+            'is_company': True,
+            'customer_rank': 1,
+            'company_type': 'company',
+            'street': safe(comp_addr.get('street')),
+            'street2': safe(comp_addr.get('number')),
+            'city':   safe(comp_addr.get('city')),
+            'zip':    safe(comp_addr.get('postal_code')),
+        }
+        cc = get_country_id(comp_addr.get('country'))
+        if cc:
+            company_vals['country_id'] = cc
+        company_id = get_or_create_company_id(company_vals)
+        person_vals['parent_id'] = company_id
+
+    partner_id = models.execute_kw(
+        ODOO_DB, ODOO_UID, ODOO_API_KEY,
+        'res.partner', 'create', [person_vals],
+        {'context': {'skip_rabbit': True}}
+    )
+    logging.info("Created user %s (ID %s)", ref, partner_id)
+
+    # Facturatie‑adres
+    inv_addr = user.get('payment_details', {}).get('facturation_address', {}) or {}
+    if any(inv_addr.values()):  # alleen als er data is
+        invoice_vals = {
+            'type': 'invoice',
+            'parent_id': partner_id,
+            'name': f"{safe(user.get('first_name'))} {safe(user.get('last_name'))} (Invoice Address)",
+            'street': safe(inv_addr.get('street')),
+            'street2': f"{safe(inv_addr.get('number'))} Bus {safe(inv_addr.get('company_bus_number'))}".strip(),
+            'city': safe(inv_addr.get('city')),
+            'zip': safe(inv_addr.get('postal_code')),
+            'email': safe(user.get('email')),
+            'phone': safe(user.get('phone_number')),
+        }
+        inv_country_id = get_country_id(inv_addr.get('country'))
+        if inv_country_id:
+            invoice_vals['country_id'] = inv_country_id
+
+        invoice_id = models.execute_kw(
+            ODOO_DB, ODOO_UID, ODOO_API_KEY,
+            'res.partner', 'create',
+            [invoice_vals],
+            {'context': {'skip_rabbit': True}}
+        )
+        logging.info("Created invoice address for %s (ID %s)", uid_value, invoice_id)
+
+
+
+# Main – start consumer
+def main():
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s %(levelname)s %(message)s'
+    )
+    logging.info("Connecting to RabbitMQ…")
+    connection = pika.BlockingConnection(RABBIT_PARAMS)
+    channel    = connection.channel()
+    
+    channel.basic_consume(queue=QUEUE_MAIN,
+                          on_message_callback=process_message,
+                          auto_ack=False)
+    logging.info("Waiting for user messages…")
+    try:
+        channel.start_consuming()
+    except KeyboardInterrupt:
+        logging.info("Stopping consumer…")
+        channel.stop_consuming()
+    finally:
+        connection.close()
+
+
+if __name__ == '__main__':
+    main()

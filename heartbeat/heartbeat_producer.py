@@ -22,11 +22,10 @@ ROUTING_KEY = os.environ.get('HEARTBEAT_ROUTING_KEY', 'monitoring.heartbeat')
 HEARTBEAT_INTERVAL = int(os.environ.get('HEARTBEAT_INTERVAL', '1'))
 
 def create_heartbeat_message():
-    root = ET.Element('attendify')
-    info = ET.SubElement(root, 'info')
-    ET.SubElement(info, 'sender').text = SENDER
-    ET.SubElement(info, 'container_name').text = CONTAINER_NAME
-    ET.SubElement(info, 'timestamp').text = datetime.utcnow().isoformat() + 'Z'
+    root = ET.Element('heartbeat')
+    ET.SubElement(root, 'sender').text = SENDER
+    ET.SubElement(root, 'container_name').text = CONTAINER_NAME
+    ET.SubElement(root, 'timestamp').text = datetime.utcnow().isoformat() + 'Z'
     return ET.tostring(root, encoding='utf-8', method='xml')
 
 def main():

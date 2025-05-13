@@ -1,57 +1,168 @@
+# docker-compose.yml
+version: "3.9"
+
+x-heartbeat: &heartbeat-template
+  build:
+    context: ./heartbeat
+    dockerfile: Dockerfile
+  restart: unless-stopped
+  volumes:
+    - ./heartbeat/heartbeat.py:/app/heartbeat.py:ro
+    - /var/run/docker.sock:/var/run/docker.sock:ro
+  command: ["python", "/app/heartbeat.py"]
+  env_file:
+    - .env
+  environment:
+    - HEARTBEAT_INTERVAL=1
+    - SENDER_NAME=
+    - CONTAINER_NAME=
+    - TARGET_CONTAINER=
 
 services:
-
-
   db:
-    image: postgres:15
     container_name: odoo-db
+    image: postgres:15
     restart: unless-stopped
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
-      - "./odoo_db_data:/var/lib/postgresql/data"
+      - odoo_db_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "30026:5432"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}", "-d", "${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  heartbeat-db:
+    <<: *heartbeat-template
+    container_name: hb-odoo-db
+    depends_on:
+      - db
+    environment:
+      - SENDER_NAME=pos
+      - CONTAINER_NAME=odoo-db
+      - TARGET_CONTAINER=odoo-db
 
   web:
+    container_name: odoo-web
     build:
       context: ./odoo
-      dockerfile: Dockerfile
-    image: odoo-custom:17.0
-    container_name: odoo-app
     restart: unless-stopped
     depends_on:
       - db
     ports:
-      - "8069:8069"
+      - "30030:8069"
     volumes:
-      - type: volume
-        source: odoo_data
-        target: /var/lib/odoo
+      - odoo_data:/var/lib/odoo
       - ./odoo/addons/pos_custom:/mnt/extra-addons
+      - ./odoo/config/odoo.conf:/etc/odoo/odoo.conf:ro
+    env_file:
+      - .env
+    dns:
+      - 8.8.8.8
+      - 1.1.1.1
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8069/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+  heartbeat-web:
+    <<: *heartbeat-template
+    container_name: hb-odoo-web
+    depends_on:
+      - web
     environment:
-      - HOST=db
-      - USER=${POSTGRES_USER}
-      - PASSWORD=${POSTGRES_PASSWORD}
-  
+      - SENDER_NAME=pos
+      - CONTAINER_NAME=odoo-web
+      - TARGET_CONTAINER=odoo-web
+
   adminer:
-    image: adminer
     container_name: adminer
+    image: adminer
     restart: unless-stopped
     ports:
       - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  heartbeat-adminer:
+    <<: *heartbeat-template
+    container_name: hb-adminer
+    depends_on:
+      - adminer
+    environment:
+      - SENDER_NAME=pos
+      - CONTAINER_NAME=adminer
+      - TARGET_CONTAINER=adminer
 
   consumer_user:
+    container_name: consumer_user
     build:
       context: ./consumers
-    container_name: consumer_user
     command: python consumer.py
-    env_file:
-      - ./consumers/.env
-    restart: always
+    volumes:
+      - ./consumers:/app
+    restart: unless-stopped
     depends_on:
       - web
+      - db
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f consumer.py >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    
+  consumer_event:
+    container_name: consumer_event
+    build:
+      context: ./consumers
+    command: python consumer_event.py
+    working_dir: /app
+    volumes:
+      - ./consumers:/app
+    restart: unless-stopped
+    depends_on:
+      - web
+      - db
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f consumer_event.py >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  heartbeat-consumer:
+    <<: *heartbeat-template
+    container_name: hb-consumer-user
+    depends_on:
+      - consumer_user
+    environment:
+      - SENDER_NAME=pos
+      - CONTAINER_NAME=consumer_user
+      - TARGET_CONTAINER=consumer_user
+
+  heartbeat-consumer-event:
+    <<: *heartbeat-template
+    container_name: hb-consumer-event
+    depends_on:
+      - consumer_event
+    environment:
+      - SENDER_NAME=pos
+      - CONTAINER_NAME=consumer_event
+      - TARGET_CONTAINER=consumer_event
+
 volumes:
   odoo_data:
+  odoo_db_data:

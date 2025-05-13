@@ -1,25 +1,38 @@
 import os, pika, time, json
+import bcrypt
+import random
+import string
+
+
+
 from dotenv import  dotenv_values
 
 config = dotenv_values()
 
+characters = string.ascii_letters + string.digits + string.punctuation
+random_password = ''.join(random.choices(characters, k=12))
+salt = bcrypt.gensalt()
+hashed = bcrypt.hashpw(random_password.encode('utf-8'), salt)
 
 
-xml = """
+password = hashed.decode('utf-8')
+user_id = f"OD{int(time.time() * 1000)}"
+
+xml = f"""
 <attendify>
       <info>
           <sender>Kassa</sender>
           <operation>Create</operation>
       </info>
       <user>
-          <id>12345</id>
+          <uid>{user_id}</uid>
           <first_name>Osman</first_name>
           <last_name>Akturk</last_name>
           <date_of_birth>1990-01-01</date_of_birth>
           <phone_number> +3212345678 </phone_number>
           <title>Mr.</title>
           <email>osman@test.com</email>
-          <password>Pasword123456!</password>
+          <password>{password}</password>
             
             
           <address>
@@ -68,25 +81,26 @@ xml = """
 """
 
 
-xml_min = """
+xml_min = f"""
 <attendify>
     <info>
         <sender>Kassa</sender>
         <operation>create</operation>
     </info>
     <user>
+        <uid>{user_id}</uid>
         <first_name>osman</first_name>
         <last_name>akturk</last_name>
         <email>osman@test.com</email>
         <title>Mr.</title>
-        <password>Hashed password</password>
+        <password>{password}</password>
     </user>
 </attendify>
 """
 
 
 credentials = pika.PlainCredentials(config["RABBITMQ_USERNAME"], config["RABBITMQ_PASSWORD"])
-params = pika.ConnectionParameters("localhost", 5672, config["RABBITMQ_VHOST"], credentials)
+params = pika.ConnectionParameters(config["RABBITMQ_HOST"], 30001, config["RABBITMQ_VHOST"], credentials)
 
 connection = pika.BlockingConnection(params)
 
@@ -104,7 +118,7 @@ channel.queue_bind(queue=queue_main, exchange=exchange_main, routing_key=routing
 
 channel.basic_publish(exchange=exchange_main,
                       routing_key=routing_main,
-                      body=xml_min,
+                      body=xml,
                       properties=pika.BasicProperties(delivery_mode=2)
                       )
     

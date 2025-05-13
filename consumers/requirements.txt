@@ -1,3 +1,4 @@
 pika
 xmltodict
 python-dotenv
+dicttoxml
