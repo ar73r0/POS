@@ -15,8 +15,22 @@ class TestCreateCustomerConsumer(unittest.TestCase):
             </info>
             <user>
                 <id>123</id>
-...
-        """
+                <first_name>Jane</first_name>
+                <last_name>Doe</last_name>
+                <title>Mr</title>
+                <email>jane@example.com</email>
+                <phone_number>1234567890</phone_number>
+                <address>
+                    <street>Main St</street>
+                    <number>42</number>
+                    <bus_number>A</bus_number>
+                    <city>Brussels</city>
+                    <postal_code>1000</postal_code>
+                    <country>Belgium</country>
+                </address>
+                <from_company>false</from_company>
+            </user>
+        </attendify>"""
 
     def test_parse_attendify_user(self):
         spec = importlib.util.spec_from_file_location(
@@ -70,9 +84,26 @@ class TestCreateCustomerConsumer(unittest.TestCase):
 
 class TestDeleteCustomerConsumer(unittest.TestCase):
 
+    @patch("xmlrpc.client.ServerProxy")
+    @patch("dotenv.dotenv_values")
     @patch("builtins.print")
     @patch("pika.BlockingConnection")
-    def test_callback_valid_json(self, mock_conn, mock_print):
+    def test_callback_valid_json(self, mock_conn, mock_print, mock_dotenv, mock_serverproxy):
+        # Mock environment config
+        mock_dotenv.return_value = {
+            "DATABASE": "db",
+            "EMAIL": "user@example.com",
+            "API_KEY": "pwd",
+            "RABBITMQ_USERNAME": "rabbit_user",
+            "RABBITMQ_PASSWORD": "rabbit_pwd",
+            "RABBITMQ_VHOST": "/"
+        }
+        # Mock xmlrpc proxies
+        mock_common = MagicMock()
+        mock_common.authenticate.return_value = 1
+        mock_models = MagicMock()
+        mock_serverproxy.side_effect = [mock_common, mock_models]
+
         spec = importlib.util.spec_from_file_location(
             "delete_customer_consumer",
             os.path.join(os.path.dirname(__file__), "delete_customer_consumer.py")
@@ -87,11 +118,28 @@ class TestDeleteCustomerConsumer(unittest.TestCase):
                 routing_key = "user.delete"
 
             module.callback(MagicMock(), DummyMethod(), None, body)
-            mock_delete_user.assert_called_with("test@example.com")
+            mock_delete_user.assert_called_once_with("test@example.com")
 
+    @patch("xmlrpc.client.ServerProxy")
+    @patch("dotenv.dotenv_values")
     @patch("builtins.print")
     @patch("pika.BlockingConnection")
-    def test_callback_invalid_json(self, mock_conn, mock_print):
+    def test_callback_invalid_json(self, mock_conn, mock_print, mock_dotenv, mock_serverproxy):
+        # Mock environment config
+        mock_dotenv.return_value = {
+            "DATABASE": "db",
+            "EMAIL": "user@example.com",
+            "API_KEY": "pwd",
+            "RABBITMQ_USERNAME": "rabbit_user",
+            "RABBITMQ_PASSWORD": "rabbit_pwd",
+            "RABBITMQ_VHOST": "/"
+        }
+        # Mock xmlrpc proxies
+        mock_common = MagicMock()
+        mock_common.authenticate.return_value = 1
+        mock_models = MagicMock()
+        mock_serverproxy.side_effect = [mock_common, mock_models]
+
         spec = importlib.util.spec_from_file_location(
             "delete_customer_consumer",
             os.path.join(os.path.dirname(__file__), "delete_customer_consumer.py")
@@ -105,7 +153,7 @@ class TestDeleteCustomerConsumer(unittest.TestCase):
                 routing_key = "user.delete"
             module.callback(MagicMock(), DummyMethod(), None, body)
             mock_print.assert_called()
-
+    
 class TestGetConsumerInfo(unittest.TestCase):
     def test_customer_info_fetch(self):
         spec = importlib.util.spec_from_file_location(
@@ -126,7 +174,7 @@ class TestGetConsumerInfo(unittest.TestCase):
             mock_proxy.side_effect = [mock_common, mock_models, mock_common, mock_models]
             spec.loader.exec_module(module)
 
-            self.assertTrue(True) 
+            self.assertTrue(True)  # No errors means success
 
 if __name__ == "__main__":
     unittest.main()
