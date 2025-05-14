@@ -14,7 +14,6 @@ PWD        = cfg["API_KEY"]
 ODOO_HOST  = cfg.get("ODOO_HOST", "web")
 ODOO_PORT  = int(cfg.get("ODOO_PORT", 8069))
 
-# check reachability
 socket.create_connection((ODOO_HOST, ODOO_PORT), timeout=5).close()
 
 url    = f"http://{ODOO_HOST}:{ODOO_PORT}/xmlrpc/2/"
@@ -67,10 +66,8 @@ def model_has_field(model: str, field: str) -> bool:
         {"limit": 1}
     ))
 
-HAS_FEE      = model_has_field("event.event", "entrance_fee")
-HAS_GCID     = model_has_field("event.event", "gcid")
-HAS_LOC_TXT  = model_has_field("event.event", "location_text")
-HAS_VENUE_ID = model_has_field("event.event", "venue_id")
+HAS_FEE        = model_has_field("event.event", "entrance_fee")
+HAS_GCID       = model_has_field("event.event", "gcid")
 HAS_TICKET_UOM = model_has_field("event.event.ticket", "product_uom_id")
 
 
@@ -112,7 +109,7 @@ def find_or_create_event_product(ev: dict) -> int:
 
 
 # ────────────────────────────────────────────────────────────────────────
-# HELPER: ticket-product
+# HELPER: ticket-product used for paid registrations
 # ────────────────────────────────────────────────────────────────────────
 def find_or_create_ticket_product() -> int:
     prod = models.execute_kw(
@@ -204,7 +201,6 @@ def handle_event(ev: dict, op: str):
         "date_end": to_dt(ev.get("end_date"), ev.get("end_time")),
     }
 
-    # parse fee
     fee = 0.0
     fee_str = ev.get("entrance_fee")
     if fee_str:
@@ -215,16 +211,13 @@ def handle_event(ev: dict, op: str):
         except ValueError:
             print("entrance_fee parse error:", fee_str)
 
-    # GCID
     if HAS_GCID and ev.get("gcid"):
         vals["gcid"] = ev["gcid"].strip()
 
-    # Venue → always use address_id
     location = ev.get("location")
     if location:
         vals["address_id"] = find_or_create_venue_partner(location)
 
-    # Organizer → map organizer_uid
     org_uid = ev.get("organizer_uid")
     if org_uid:
         org = models.execute_kw(
@@ -266,10 +259,10 @@ def handle_event(ev: dict, op: str):
         )
         print(f"Event created  id={new_id}")
 
-        # create product.template
+        # product.template
         find_or_create_event_product(ev)
 
-        # create ticket when fee > 0
+        # create ticket if fee > 0
         if fee > 0:
             ticket_vals = {
                 "event_id":  new_id,
@@ -346,16 +339,31 @@ def handle_attendee(ea: dict, op: str):
     reg_id = existing and existing[0]["id"]
     ctx    = {"context": {"skip_rabbit": True}}
 
+    # Helper: fetch first ticket (if any) to link sale order / price
+    def _get_first_ticket_id(ev_id: int):
+        tix = models.execute_kw(
+            DB, uid, PWD,
+            "event.event.ticket", "search_read",
+            [[("event_id", "=", ev_id)]],
+            {"limit": 1, "fields": ["id"], "order": "id ASC"}
+        )
+        return tix[0]["id"] if tix else False
+
     if op == "register":
         if reg_id:
             print(f"Already registered (id={reg_id})")
-        else:
-            new_id = models.execute_kw(
-                DB, uid, PWD,
-                "event.registration", "create",
-                [{"event_id": event_id, "partner_id": partner_id}], ctx
-            )
-            print(f"Registered  id={new_id}")
+            return
+
+        ticket_id = _get_first_ticket_id(event_id)
+        reg_vals  = {"event_id": event_id, "partner_id": partner_id}
+        if ticket_id:
+            reg_vals["event_ticket_id"] = ticket_id
+
+        new_id = models.execute_kw(
+            DB, uid, PWD,
+            "event.registration", "create", [reg_vals], ctx
+        )
+        print(f"Registered  id={new_id}")
 
     elif op == "unregister":
         if reg_id:
