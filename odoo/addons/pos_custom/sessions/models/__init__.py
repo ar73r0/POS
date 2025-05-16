@@ -1,1 +1,1 @@
-from . import sessions_sync
+from . import payment_sync
