@@ -53,6 +53,12 @@ services:
     build:
       context: ./odoo
     restart: unless-stopped
+
+    command: >
+      odoo
+      --config=/etc/odoo/odoo.conf
+      --dev=assets,js
+      
     depends_on:
       - db
     ports:
