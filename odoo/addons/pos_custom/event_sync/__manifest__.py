@@ -18,6 +18,7 @@
             "event_sync/static/src/models/order_auto_event.js",
             "event_sync/static/src/components/event_selector_popup.js",
             "event_sync/static/src/xml/event_selector_popup.xml",
+            "event_sync/static/src/startup/event_popup_start.js",
         ],
     },
 }
