@@ -21,4 +21,5 @@
             "event_sync/static/src/startup/event_popup_start.js",
         ],
     },
+    'data': ['security/ir.model.access.csv'],
 }
