@@ -1,0 +1,8 @@
+<t t-name="EventButton" owl="1">
+    <button  class="control-button"
+             t-on-click="onClick"
+             t-att-title="tooltip">
+        <i class="fa fa-calendar"></i>
+        <span><t t-esc="label"/></span>
+    </button>
+</t>
