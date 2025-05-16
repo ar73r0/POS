@@ -1,0 +1,26 @@
+<t t-name="EventSelectorPopup" owl="1">
+    <Popup title="Selecteer een event">
+        <div class="oe_popup_content">
+            <t t-foreach="widget.events" t-as="ev" t-key="ev.id">
+                <label class="d-block my-1">
+                    <input  type="radio"
+                            t-att-value="ev.id"
+                            t-on-click="widget.selectEvent(ev.id)"
+                            t-att-checked="widget.state.selectedId === ev.id"/>
+                    <t t-esc="ev.name"/>
+                </label>
+            </t>
+        </div>
+        <footer>
+            <button class="btn btn-primary"
+                    t-on-click="widget.confirm"
+                    t-att-disabled="!widget.state.selectedId">
+                OK
+            </button>
+            <button class="btn btn-secondary"
+                    t-on-click="widget.cancel">
+                Annuleer
+            </button>
+        </footer>
+    </Popup>
+</t>

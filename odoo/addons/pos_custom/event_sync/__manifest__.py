@@ -11,4 +11,13 @@
     'installable': True,
     'application': False,
     'auto_install': False,
+        'assets': {
+        'point_of_sale.assets': [
+            "event_sync/static/src/models/event_model.js",
+            "event_sync/static/src/models/order_ext.js",
+            "event_sync/static/src/models/order_auto_event.js",
+            "event_sync/static/src/components/event_selector_popup.js",
+            "event_sync/static/src/xml/event_selector_popup.xml",
+        ],
+    },
 }

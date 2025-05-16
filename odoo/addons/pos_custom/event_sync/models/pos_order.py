@@ -4,12 +4,22 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import pika
 from odoo import models
+from odoo import api, fields, models
 
 _logger = logging.getLogger(__name__)
 
 
 class PosOrderPublisher(models.Model):
     _inherit = "pos.order"
+
+    event_id  = fields.Many2one("event.event", string="Event")
+    event_uid = fields.Char(related="event_id.external_uid", store=True)
+
+    @api.model
+    def _order_fields(self, ui_order):
+        res = super()._order_fields(ui_order)
+        res["event_id"] = ui_order.get("event_id") or False
+        return res
 
     def _build_raw_xml(self, order):
         root = ET.Element("attendify")
@@ -22,7 +32,7 @@ class PosOrderPublisher(models.Model):
 
         tab = ET.SubElement(root, "tab")
         ET.SubElement(tab, "uid").text = f"{order.partner_id.ref}"
-        ET.SubElement(tab, "event_id").text = "e5" # Temporarily hardcoded
+        ET.SubElement(tab, "event_id").text = order.event_uid or ""
         ET.SubElement(tab, "timestamp").text = order.date_order.isoformat()
 
         items = ET.SubElement(tab, "items")
