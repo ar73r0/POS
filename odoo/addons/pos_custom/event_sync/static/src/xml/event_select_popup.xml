@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+  <t t-name="event_sync.EventSelectPopup" owl="1">
+    <div class="event-popup">
+      <h3>Select an event</h3>
+      <table class="table">
+        <thead><tr><th>Name</th><th>Date</th></tr></thead>
+        <tbody>
+          <t t-foreach="state.events" t-as="ev">
+            <tr t-on-click="select(ev)" style="cursor:pointer">
+              <td><t t-esc="ev.name"/></td>
+              <td><t t-esc="ev.date_begin.split(' ')[0]"/></td>
+            </tr>
+          </t>
+        </tbody>
+      </table>
+    </div>
+  </t>
+</templates>

@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<templates id="event_sync_templates" xml:space="preserve">
-    <t t-name="EventButton" owl="1">
-        <button class="control-button" t-on-click="onClick" t-att-title="tooltip">
-            <i class="fa fa-calendar mr-1"/>
-            <t t-esc="label"/>
-        </button>
-    </t>
-</templates>
