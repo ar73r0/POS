@@ -2,10 +2,12 @@
 import { patch } from '@web/core/utils/patch';
 import { Order } from '@point_of_sale/app/store/models';
 
-patch(Order.prototype, 'event_sync_order_patch', {
+patch(Order.prototype, {
     export_as_JSON() {
         const json = super.export_as_JSON(...arguments);
-        json.event_id = this.event_id || false;
+        if (this.event_id) {
+            json.event_id = Number(this.event_id);
+        }
         return json;
     },
     init_from_JSON(json) {

@@ -1,32 +1,19 @@
 /** @odoo-module **/
+import { AbstractAwaitablePopup } from "@point_of_sale/app/popup/abstract_awaitable_popup";
+import { useState } from "@odoo/owl";
 
-import { Component, onWillStart, useState } from "@odoo/owl";
-import { registerPopup } from "@point_of_sale/app/utils/register_popups";
-import { useService } from "@web/core/utils/hooks";
+export class EventSelectPopup extends AbstractAwaitablePopup {
+    static template     = "event_sync.EventSelectPopup";
+    static defaultProps = { title:"Select an Event", confirmText:"OK", cancelText:"Cancel", events:[] };
 
-export class EventSelectPopup extends Component {
     setup() {
         super.setup();
-        this.rpc   = useService("rpc");
-        this.state = useState({ events: [] });
-
-        onWillStart(async () => {
-            /* grab the next 50 upcoming events */
-            const today  = new Date().toISOString().slice(0, 10);
-            this.state.events = await this.rpc({
-                model: "event.event",
-                method: "search_read",
-                args: [[["date_end", ">", today]], ["id", "name", "date_begin"]],
-                kwargs: { limit: 50, order: "date_begin asc" },
-            });
-        });
+        this.state = useState({ selectedId: this.props.events[0]?.id || null });
     }
 
-    /** user clicked an event row */
-    select(ev) {
-        this.props.confirm({ event: ev });
-        this.trigger("close-popup");
+    // Base class will call this in its own confirm()
+    getPayload() {
+        return this.state.selectedId;
     }
+    // no confirm() override at all
 }
-EventSelectPopup.template = "event_sync.EventSelectPopup";
-registerPopup("EventSelectPopup", EventSelectPopup);

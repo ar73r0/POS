@@ -1,14 +1,12 @@
-# pos_event_button/models/pos_order.py
-import os
 import logging
+import os
+import pika
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
-import pika
 from odoo import api, fields, models
 
 _logger = logging.getLogger(__name__)
-
 
 class PosOrder(models.Model):
     _inherit = "pos.order"
@@ -17,7 +15,11 @@ class PosOrder(models.Model):
     #  FIELDS
     # ---------------------------------------------------------------------
     event_id  = fields.Many2one("event.event", string="Event")
-    event_uid = fields.Char(related="event_id.external_uid", store=True)
+    event_uid = fields.Char(
+        related="event_id.external_uid",
+        string="Event External UID",
+        store=True,
+    )
 
     # ---------------------------------------------------------------------
     #  POS → backend JSON mapping
@@ -25,6 +27,7 @@ class PosOrder(models.Model):
     @api.model
     def _order_fields(self, ui_order):
         res = super()._order_fields(ui_order)
+        # send only the internal ID; the backend related-field will look up the UID
         res["event_id"] = ui_order.get("event_id") or False
         return res
 
@@ -33,13 +36,20 @@ class PosOrder(models.Model):
     # ---------------------------------------------------------------------
     def send_event_xml(self):
         """
-        Called from JS. Works on a single record (ensure_one()) and
-        re-uses existing helpers to build & publish the XML.
+        Called from JS or automatically on paid orders.
+        Builds & pretty-prints the XML, then publishes to RabbitMQ.
         """
         self.ensure_one()
         raw_xml    = self._build_raw_xml(self)
         pretty_xml = self._pretty_xml(raw_xml)
+
+        # 1) publish to RabbitMQ
         self._send_to_rabbitmq(pretty_xml)
+        # 2) log success
+        _logger.info(
+            "POS → RabbitMQ sent for order %s (exchange=%s, routing_key=%s)",
+            self.name, "sale", "sale.performed"
+        )
         return True
 
     # ---------------------------------------------------------------------
@@ -56,7 +66,7 @@ class PosOrder(models.Model):
 
         tab = ET.SubElement(root, "tab")
         ET.SubElement(tab, "uid").text       = order.partner_id.ref or ""
-        ET.SubElement(tab, "event_id").text  = order.event_uid     or ""
+        ET.SubElement(tab, "event_id").text  = order.event_uid or ""
         ET.SubElement(tab, "timestamp").text = order.date_order.isoformat()
 
         items = ET.SubElement(tab, "items")
@@ -72,43 +82,49 @@ class PosOrder(models.Model):
         return minidom.parseString(xml_bytes).toprettyxml(indent="  ")
 
     # ---------------------------------------------------------------------
-    #  RabbitMQ publisher
+    #  Real RabbitMQ publisher
     # ---------------------------------------------------------------------
     def _send_to_rabbitmq(self, xml_string: str):
         try:
-            host       = os.getenv("RABBITMQ_HOST")
-            port       = int(os.getenv("RABBITMQ_PORT", 5672))
-            user       = os.getenv("RABBITMQ_USERNAME")
-            password   = os.getenv("RABBITMQ_PASSWORD")
-            vhost      = os.getenv("RABBITMQ_VHOST", "/")
-            exchange   = "sale.performed"
-            routing_key = "sale"
+            host        = os.getenv("RABBITMQ_HOST")
+            port        = int(os.getenv("RABBITMQ_PORT", 5672))
+            user        = os.getenv("RABBITMQ_USERNAME")
+            password    = os.getenv("RABBITMQ_PASSWORD")
+            vhost       = os.getenv("RABBITMQ_VHOST", "/")
+
+            # Target exchange & routing key
+            exchange    = "sale"
+            routing_key = "sale.performed"
 
             if not all([host, user, password]):
                 _logger.error("RabbitMQ environment variables missing!")
                 return
 
             creds      = pika.PlainCredentials(user, password)
-            connection = pika.BlockingConnection(pika.ConnectionParameters(
-                host=host, port=port, virtual_host=vhost, credentials=creds
-            ))
-            channel = connection.channel()
-            channel.exchange_declare(exchange=exchange,
-                                     exchange_type="direct",
-                                     durable=True)
-
+            conn       = pika.BlockingConnection(
+                pika.ConnectionParameters(
+                    host=host,
+                    port=port,
+                    virtual_host=vhost,
+                    credentials=creds,
+                )
+            )
+            channel = conn.channel()
+            channel.exchange_declare(
+                exchange=exchange,
+                exchange_type="direct",
+                durable=True
+            )
             channel.basic_publish(
                 exchange=exchange,
                 routing_key=routing_key,
                 body=xml_string.encode("utf-8"),
                 properties=pika.BasicProperties(
                     content_type="application/xml",
-                    delivery_mode=2
+                    delivery_mode=2,
                 ),
             )
-            _logger.info("XML message sent to RabbitMQ successfully.")
-            connection.close()
-
+            conn.close()
         except Exception as e:
             _logger.exception("Failed to send XML to RabbitMQ: %s", e)
 

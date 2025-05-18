@@ -1,27 +1,59 @@
 /** @odoo-module **/
-import { patch }        from "@web/core/utils/patch";
-import { _t }           from "@web/core/l10n/translation";
+import { Component } from "@odoo/owl";
 import { ProductScreen } from "@point_of_sale/app/screens/product_screen/product_screen";
-import { useService }   from "@web/core/utils/hooks";
+import { useService } from "@web/core/utils/hooks";
+import { usePos } from "@point_of_sale/app/store/pos_hook";
+import { _t } from "@web/core/l10n/translation";
 
-patch(ProductScreen.prototype, "event_sync_pos_button", {
-    setup() {
-        super.setup();
-        this.rpc          = useService("rpc");
-        this.notification = useService("notification");
-    },
+import { EventSelectPopup } from "./event_select_popup";
+import { ConfirmPopup } from "@point_of_sale/app/utils/confirm_popup/confirm_popup";
 
-    /* choose an event and store it on the current order */
-    async select_event() {
-        const { confirmed, payload } = await this.showPopup("EventSelectPopup");
-        if (!confirmed) { return; }
+export class EventButton extends Component {
+  static template = "event_sync.EventButton";
 
-        const order = this.env.pos.get_order();
-        order.event_id = payload.event.id;
-        this.notification.add(
-            _t("Event set: ") + payload.event.name,
-            { type: "info" }
-        );
-    },
+  setup() {
+    super.setup();
+    this.pos   = usePos();
+    this.orm   = useService("orm");
+    this.popup = useService("popup");
+  }
 
+  async onClick() {
+    // 1) fetch events
+    const events = await this.orm.call("event.event", "search_read",
+      [[], ["id", "name"]]
+    );
+
+    if (!events.length) {
+      await this.popup.add(ConfirmPopup, {
+        title: _t("No Events"),
+        body:  _t("There are no events available."),
+      });
+      return;
+    }
+
+    // 2) show selector
+    const { confirmed, payload: selectedId } =
+      await this.popup.add(EventSelectPopup, { events });
+
+    // user cancelled or nothing chosen ➜ do nothing
+    if (!confirmed || !selectedId) {
+      return;
+    }
+
+    // 3) tag order and acknowledge
+    const order = this.pos.get_order();
+    if (order) {
+      order.event_id = selectedId;
+      await this.popup.add(ConfirmPopup, {
+        title: _t("Event set"),
+        body:  _t("Order tagged with event %(id)s", { id: selectedId }),
+      });
+    }
+  }
+}
+
+ProductScreen.addControlButton({
+  component: EventButton,
+  condition: () => true,
 });
