@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<templates id="template" xml:space="preserve">
+  <!-- 1) The calendar button -->
+  <t t-name="event_sync.EventButton" owl="1">
+    <button
+      class="control-button oe_pos_event_send"
+      t-on-click="onClick"
+      title="Select Event">
+      <i class="fa fa-calendar"/>
+    </button>
+  </t>
+
+  <!-- 2) The popup itself -->
+  <t t-name="event_sync.EventSelectPopup" owl="1">
+    <div class="popup event_select_popup">
+      <div class="modal-header justify-content-center">
+        <h2 t-esc="props.title"/>
+      </div>
+      <div class="modal-body">
+        <select t-model="state.selectedId" class="form-control">
+          <t t-foreach="props.events" t-as="ev" t-key="ev.id">
+            <option t-att-value="ev.id">
+              <t t-esc="ev.name"/>
+            </option>
+          </t>
+        </select>
+      </div>
+      <div class="modal-footer justify-content-end">
+        <button t-on-click="cancel"  class="btn btn-secondary btn-sm">
+          <t t-esc="props.cancelText"/>
+        </button>
+        <button t-on-click="confirm" class="btn btn-primary btn-sm">
+          <t t-esc="props.confirmText"/>
+        </button>
+      </div>
+    </div>
+  </t>
+</templates>

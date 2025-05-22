@@ -70,7 +70,6 @@ def main():
                     body=msg,
                     properties=pika.BasicProperties(delivery_mode=2)
                 )
-                logging.info(f"[Heartbeat] Verzonden: {msg.decode()}")
             else:
                 logging.warning(f"[Heartbeat] Sla over: target '{TARGET}' niet healthy")
             time.sleep(INTERVAL)

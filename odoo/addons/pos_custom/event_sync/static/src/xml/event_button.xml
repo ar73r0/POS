@@ -1,0 +1,17 @@
+<t t-extend="ProductScreen.ControlButtons">
+  <t t-jquery="div.o_control_buttons" t-operation="append">
+    <!-- choose event -->
+    <button class="control-button oe_pos_select_event"
+            t-on-click="select_event"
+            title="Select event">
+      <i class="fa fa-calendar"/>
+    </button>
+
+    <!-- push XML-->
+    <button class="control-button oe_pos_event_send"
+            t-on-click="send_event_to_rabbit"
+            title="Send tab to RabbitMQ">
+      <i class="fa fa-paper-plane"/>
+    </button>
+  </t>
+</t>

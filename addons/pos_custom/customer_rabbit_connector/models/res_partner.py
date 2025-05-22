@@ -1,4 +1,4 @@
-from odoo import models, api
+from odoo import models,fields, api
 import pika
 import xml.etree.ElementTree as ET
 import logging
@@ -31,6 +31,8 @@ class ResPartner(models.Model):
         user_id = self.ref
         first_name = name_parts[0] if name_parts else ''
         last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ''
+        is_admin = fields.Boolean(string="Is Admin", default=False)
+
 
         characters = string.ascii_letters + string.digits + string.punctuation
         random_password = ''.join(random.choices(characters, k=12))
@@ -54,6 +56,7 @@ class ResPartner(models.Model):
         <email>{self.email}</email>
         <password>{password}</password>
         <title>{self.title.name if self.title else ''}</title>
+         <is_admin>{"true" if self.is_admin else "false"}</is_admin>
     </user>
 </attendify>
 """

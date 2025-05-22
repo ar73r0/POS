@@ -71,6 +71,8 @@ class ResPartner(models.Model):
         parts = (self.name or "").strip().split()
         first_name = parts[0] if parts else ""
         last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+        is_admin = fields.Boolean(string="Is Admin", default=False)
+
 
         # Pak bestaande hash óf genereer eenmalig
         hashed = self.integration_pw_hash
@@ -94,7 +96,8 @@ class ResPartner(models.Model):
     <email>{self.email}</email>
     <password>{hashed}</password>
     <title>{(self.title.name or '') if self.title else ''}</title>
-  </user>
+  <is_admin>{"true" if self.is_admin else "false"}</is_admin>
+</user>
 </attendify>"""
 
         _logger.debug("RabbitMQ XML for partner %s (%s):\n%s", self.id, operation, xml)
