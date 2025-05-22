@@ -9,7 +9,7 @@ from dotenv import dotenv_values
 # ────────────────────────────────────────────────────────────────────────
 # HELPERS FOR TEST-SUITE HOOKS
 # ────────────────────────────────────────────────────────────────────────
-def _handle_create(parsed):
+def _handle_user_create(parsed):
     user = parsed['attendify']['user']
     ref  = (user.get('uid') or '').strip()
     if not ref:
@@ -17,7 +17,7 @@ def _handle_create(parsed):
     # call into your "create user" logic:
     _create_user_logic(user)
 
-def _handle_update(parsed):
+def _handle_user_update(parsed):
     user = parsed['attendify']['user']
     ref  = (user.get('uid') or '').strip()
     if not ref:
@@ -25,7 +25,7 @@ def _handle_update(parsed):
     # call into your "update user" logic:
     _update_user_logic(user)
 
-def _handle_delete(parsed):
+def _handle_user_delete(parsed):
     ref = (parsed['attendify']['user'].get('uid') or '').strip()
     if not ref:
         raise ValueError('UID missing in delete message')
@@ -465,11 +465,11 @@ def process_message(ch, method, props, body):
         op   = data['attendify']['info']['operation'].strip().lower()
 
         if   op == 'create':
-            _handle_create(data)
+            _handle_user_create(data)
         elif op == 'update':
-            _handle_update(data)
+            _handle_user_update(data)
         elif op == 'delete':
-            _handle_delete(data)
+            _handle_user_delete(data)
         else:
             raise ValueError(f"Unknown operation: {op}")
 
@@ -492,7 +492,3 @@ if __name__ == '__main__':
         ch.stop_consuming()
     finally:
         conn.close()
-
-
-if __name__ == '__main__':
-    main()

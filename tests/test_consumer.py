@@ -115,19 +115,19 @@ class TestConsumerCRUD(unittest.TestCase):
         self.consumer.process_message(self.ch, m, None, _xml(op))
 
     def test_dispatch_create(self):
-        with patch.object(self.consumer, "_handle_create") as h:
+        with patch.object(self.consumer, "_handle_user_create") as h:
             self._call_process("create")
             h.assert_called_once()
             self.ch.basic_ack.assert_called_with(delivery_tag=99)
 
     def test_dispatch_update(self):
-        with patch.object(self.consumer, "_handle_update") as h:
+        with patch.object(self.consumer, "_handle_user_update") as h:
             self._call_process("update")
             h.assert_called_once()
             self.ch.basic_ack.assert_called_with(delivery_tag=99)
 
     def test_dispatch_delete(self):
-        with patch.object(self.consumer, "_handle_delete") as h:
+        with patch.object(self.consumer, "_handle_user_delete") as h:
             self._call_process("delete")
             h.assert_called_once()
             self.ch.basic_ack.assert_called_with(delivery_tag=99)
@@ -138,7 +138,7 @@ class TestConsumerCRUD(unittest.TestCase):
     def test_handle_delete_invokes_delete_user(self):
         xml_dict = self.consumer.xmltodict.parse(_xml("delete").decode())
         with patch.object(self.consumer, "delete_user") as du:
-            self.consumer._handle_delete(xml_dict)
+            self.consumer._handle_user_delete(xml_dict)
             du.assert_called_once_with("ABC123")
 
 

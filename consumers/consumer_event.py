@@ -234,15 +234,15 @@ def handle_event(ev: dict, op: str):
 # ----------------------------------------------------------------------
 # Thin wrappers the unit-tests patch
 # ----------------------------------------------------------------------
-def _handle_create(root_elem):
+def _handle_event_create(root_elem):
     ev = {c.tag: c.text or "" for c in root_elem.find("event")}
     handle_event(ev, "create")
 
-def _handle_update(root_elem):
+def _handle_event_update(root_elem):
     ev = {c.tag: c.text or "" for c in root_elem.find("event")}
     handle_event(ev, "update")
 
-def _handle_delete(root_elem):
+def _handle_event_delete(root_elem):
     ev = {c.tag: c.text or "" for c in root_elem.find("event")}
     handle_event(ev, "delete")
 # ----------------------------------------------------------------------
@@ -275,11 +275,11 @@ def process_message(ch, method, props, body):
             root_elem = ET.fromstring(text)
             op = (root_elem.findtext("./info/operation") or "").strip().lower()
             if op == "create":
-                _handle_create(root_elem)
+                _handle_event_create(root_elem)
             elif op == "update":
-                _handle_update(root_elem)
+                _handle_event_update(root_elem)
             elif op == "delete":
-                _handle_delete(root_elem)
+                _handle_event_delete(root_elem)
             else:
                 print("Unknown payload type (fallback)")
         except Exception as e:
