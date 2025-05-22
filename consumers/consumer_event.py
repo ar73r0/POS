@@ -2,6 +2,7 @@ import socket
 import pika
 import xmltodict
 import xmlrpc.client
+import re
 from dotenv import dotenv_values
 
 # ────────────────────────────────────────────────────────────────────────
@@ -22,11 +23,23 @@ uid    = common.authenticate(DB, USER, PWD, {})
 models = xmlrpc.client.ServerProxy(url + "object")
 
 
-def to_dt(date_str: str | None, time_str: str | None = "00:00"):
-    """Convert date + time to Odoo 'YYYY-MM-DD HH:MM:SS' or False."""
+def to_dt(date_str: str | None, time_str: str | None = None):
+    """Geef 'YYYY-MM-DD HH:MM:SS' terug of False."""
     if not date_str:
         return False
-    return f"{date_str.strip()} {time_str or '00:00'}:00"
+
+    # default-tijd
+    if not time_str:
+        time_str = "00:00:00"
+    else:
+        time_str = time_str.strip()
+        # voeg alleen seconden toe als ze ontbreken
+        if re.match(r"^\d{2}:\d{2}$", time_str):
+            time_str += ":00"
+        elif not re.match(r"^\d{2}:\d{2}:\d{2}$", time_str):
+            raise ValueError(f"Onbekend tijdformaat: {time_str}")
+
+    return f"{date_str.strip()} {time_str}"
 
 
 # ────────────────────────────────────────────────────────────────────────
