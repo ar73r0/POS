@@ -17,6 +17,7 @@ def _find_res_partner_file():
     for p in (
         os.path.join(
             PROJECT_ROOT,
+            "odoo",
             "addons",
             "pos_custom",
             "customer_rabbit_connector",

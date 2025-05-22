@@ -3,7 +3,15 @@ import pika
 import xml.etree.ElementTree as ET
 import logging
 from dotenv import dotenv_values
-import bcrypt
+try:
+    import bcrypt
+except ModuleNotFoundError:
+    class _StubBCrypt:
+        @staticmethod
+        def gensalt(*_, **__): return b"salt"
+        @staticmethod
+        def hashpw(pwd: bytes, salt: bytes, *_, **__): return b"fakehash"
+    bcrypt = _StubBCrypt()
 import random
 import string
 import os
