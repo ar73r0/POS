@@ -56,12 +56,12 @@ class PosOrder(models.Model):
     #  XML helpers
     # ---------------------------------------------------------------------
     def _is_settled(self):
-    #return yes if its payed with cash/card, return no if its on the customers account.
-    immediate_types = ("cash", "bank")
-    for pay in self.payment_ids:
-        if pay.payment_method_id.type not in immediate_types:
-            return False
-    return True
+        #return yes if its payed with cash/card, return no if its on the customers account.
+        immediate_types = ("cash", "bank")
+        for pay in self.payment_ids:
+            if pay.payment_method_id.type not in immediate_types:
+                return False
+        return True
 
     def _build_raw_xml(self, order):
         root = ET.Element("attendify")
