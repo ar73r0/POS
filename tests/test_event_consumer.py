@@ -77,9 +77,33 @@ except ImportError:
 def _dummy_parse(body):
     root = ET.fromstring(body)
     op = root.findtext("./info/operation").lower()
+
+    # 1) event payload?
     ev_elem = root.find("event")
-    ev = {child.tag: child.text or "" for child in ev_elem}
-    return {"attendify": {"info": {"operation": op}, "event": ev}}
+    if ev_elem is not None:
+        ev = {c.tag: c.text or "" for c in ev_elem}
+        return {"attendify": {"info": {"operation": op}, "event": ev}}
+
+    # 2) attendee payload?
+    ea_elem = root.find("event_attendee")
+    if ea_elem is not None:
+        ea = {c.tag: c.text or "" for c in ea_elem}
+        return {"attendify": {"info": {"operation": op}, "event_attendee": ea}}
+
+    # 3) session payload?  (for later)
+    s_elem = root.find("session")
+    if s_elem is not None:
+        sess = {c.tag: c.text or "" for c in s_elem if not list(c)}
+        spk   = s_elem.find("speaker")
+        if spk is not None:
+            sess["speaker"] = {
+                "name": spk.findtext("name") or "",
+                "bio":  spk.findtext("bio")  or "",
+            }
+        return {"attendify": {"info": {"operation": op}, "session": sess}}
+
+    raise ValueError("Unknown test payload")
+
 
 xmltodict.parse = _dummy_parse
 

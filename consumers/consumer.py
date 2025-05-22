@@ -1,3 +1,4 @@
+# consumers/consumer.py
 # -*- coding: utf-8 -*-
 import logging
 import xmlrpc.client
@@ -5,46 +6,76 @@ import xmltodict
 import pika
 from dotenv import dotenv_values
 
-# ------------------------------------------------------------------ #
-# Config
-# ------------------------------------------------------------------ #
-config = dotenv_values()
+# ────────────────────────────────────────────────────────────────────────
+# HELPERS FOR TEST-SUITE HOOKS
+# ────────────────────────────────────────────────────────────────────────
+def _handle_create(parsed):
+    user = parsed['attendify']['user']
+    ref  = (user.get('uid') or '').strip()
+    if not ref:
+        raise ValueError('UID missing in create message')
+    # call into your "create user" logic:
+    _create_user_logic(user)
 
-# -- Odoo ----------------------------------------------------------- #
-ODOO_URL   = f"http://{config['ODOO_HOST']}:8069/"
-ODOO_DB    = config['DATABASE']
-ODOO_EMAIL = config['EMAIL']
-ODOO_API   = config['API_KEY']
+def _handle_update(parsed):
+    user = parsed['attendify']['user']
+    ref  = (user.get('uid') or '').strip()
+    if not ref:
+        raise ValueError('UID missing in update message')
+    # call into your "update user" logic:
+    _update_user_logic(user)
 
-ODOO_API_KEY = ODOO_API
+def _handle_delete(parsed):
+    ref = (parsed['attendify']['user'].get('uid') or '').strip()
+    if not ref:
+        raise ValueError('UID missing in delete message')
+    delete_user(ref)
 
-common = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/common")
-ODOO_UID = common.authenticate(ODOO_DB, ODOO_EMAIL, ODOO_API_KEY, {})
-models   = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/object")
+# ────────────────────────────────────────────────────────────────────────
+# CONFIGURATION
+# ────────────────────────────────────────────────────────────────────────
+config      = dotenv_values()
+ODOO_URL    = f"http://{config['ODOO_HOST']}:8069/"
+ODOO_DB     = config['DATABASE']
+ODOO_EMAIL  = config['EMAIL']
+ODOO_API    = config['API_KEY']
+RABBIT_HOST = config['RABBITMQ_HOST']
+RABBIT_PORT = int(config['RABBITMQ_PORT'])
+RABBIT_USER = config['RABBITMQ_USERNAME']
+RABBIT_PWD  = config['RABBITMQ_PASSWORD']
+RABBIT_VHOST= config['RABBITMQ_VHOST']
 
-# -- RabbitMQ ------------------------------------------------------- #
-RABBIT_PARAMS = pika.ConnectionParameters(
-    host=config['RABBITMQ_HOST'],
-    port=int(config['RABBITMQ_PORT']),
-    virtual_host=config['RABBITMQ_VHOST'],
-    credentials=pika.PlainCredentials(
-        config['RABBITMQ_USERNAME'],
-        config['RABBITMQ_PASSWORD']
-    )
+# ────────────────────────────────────────────────────────────────────────
+# ODOO RPC SETUP
+# ────────────────────────────────────────────────────────────────────────
+common = xmlrpc.client.ServerProxy(f"{ODOO_URL}xmlrpc/2/common")
+UID    = common.authenticate(ODOO_DB, ODOO_EMAIL, ODOO_API, {})
+models = xmlrpc.client.ServerProxy(f"{ODOO_URL}xmlrpc/2/object")
+
+# ────────────────────────────────────────────────────────────────────────
+# RABBITMQ SETUP
+# ────────────────────────────────────────────────────────────────────────
+creds  = pika.PlainCredentials(RABBIT_USER, RABBIT_PWD)
+params = pika.ConnectionParameters(
+    host=RABBIT_HOST, port=RABBIT_PORT,
+    virtual_host=RABBIT_VHOST,
+    credentials=creds,
 )
+conn   = pika.BlockingConnection(params)
+ch     = conn.channel()
+
 EXCHANGE_MAIN = 'user-management'
 QUEUE_MAIN    = 'pos.user'
+ch.exchange_declare(exchange=EXCHANGE_MAIN, exchange_type="direct", durable=True)
+ch.queue_declare   (queue=QUEUE_MAIN, durable=True)
 
-
-# Utility helpers
-
+# ────────────────────────────────────────────────────────────────────────
+# UTILITY HELPERS
+# ────────────────────────────────────────────────────────────────────────
 def safe(value: str) -> str:
-    """Stript een string, retourneert altijd een (mogelijke lege) string."""
     return (value or "").strip()
 
-
 def bool_from_str(value: str) -> bool:
-    """'true'/'True' → True, alles andere → False"""
     return safe(value).lower() == 'true'
 
 
@@ -303,257 +334,164 @@ COUNTRY_NAME_TO_CODE: Dict[str, str] = {
                         "Åland Islands": "AX"
                     }
 
-        
-def get_country_id(country_name: str):
-    """Geeft Odoo country_id terug of False als niet gevonden."""
+ def get_country_id(country_name: str):
     code = COUNTRY_NAME_TO_CODE.get(safe(country_name).title())
     if not code:
         return False
     res = models.execute_kw(
-        ODOO_DB, ODOO_UID, ODOO_API_KEY,
+        ODOO_DB, UID, ODOO_API,
         'res.country', 'search_read',
         [[['code', '=', code]]],
         {'fields': ['id'], 'limit': 1, 'context': {'skip_rabbit': True}}
     )
     return res[0]['id'] if res else False
 
-
 def get_title_id(shortcut: str):
     res = models.execute_kw(
-        ODOO_DB, ODOO_UID, ODOO_API_KEY,
+        ODOO_DB, UID, ODOO_API,
         'res.partner.title', 'search_read',
         [[('shortcut', '=', safe(shortcut))]],
         {'fields': ['id'], 'limit': 1, 'context': {'skip_rabbit': True}}
     )
     return res[0]['id'] if res else False
 
-
-def get_or_create_company_id(company_vals: dict):
-    domain = [['name', '=', company_vals['name']], ['is_company', '=', True]]
-    if company_vals.get('vat'):
-        domain.append(['vat', '=', company_vals['vat']])
-
+def get_or_create_company_id(vals: dict):
+    domain = [['name','=',vals['name']], ['is_company','=',True]]
+    if vals.get('vat'):
+        domain.append(['vat','=',vals['vat']])
     existing = models.execute_kw(
-        ODOO_DB, ODOO_UID, ODOO_API_KEY,
+        ODOO_DB, UID, ODOO_API,
         'res.partner', 'search_read',
         [domain],
-        {'fields': ['id'], 'limit': 1, 'context': {'skip_rabbit': True}}
+        {'fields':['id'],'limit':1,'context':{'skip_rabbit':True}}
     )
     if existing:
         return existing[0]['id']
-
     return models.execute_kw(
-        ODOO_DB, ODOO_UID, ODOO_API_KEY,
-        'res.partner', 'create',
-        [company_vals],
-        {'context': {'skip_rabbit': True}}
+        ODOO_DB, UID, ODOO_API,
+        'res.partner', 'create', [vals],
+        {'context':{'skip_rabbit':True}}
     )
-
 
 def delete_user(ref: str):
     partner_ids = models.execute_kw(
-        ODOO_DB, ODOO_UID, ODOO_API_KEY,
-        'res.partner', 'search', [[['ref', '=', ref]]],
-        {'context': {'active_test': False, 'skip_rabbit': True}}
+        ODOO_DB, UID, ODOO_API,
+        'res.partner','search',[[['ref','=',ref]]],
+        {'context':{'active_test':False,'skip_rabbit':True}}
     )
     if partner_ids:
         models.execute_kw(
-            ODOO_DB, ODOO_UID, ODOO_API_KEY,
-            'res.partner', 'unlink', [partner_ids],
-            {'context': {'skip_rabbit': True}}
+            ODOO_DB, UID, ODOO_API,
+            'res.partner','unlink',[partner_ids],
+            {'context':{'skip_rabbit':True}}
         )
-        logging.info("Customer %s deleted", ref)
+        logging.info("Deleted user %s", ref)
     else:
-        logging.info("Customer %s not found (nothing to delete)", ref)
+        logging.info("User %s not found", ref)
 
-# ------------------------------------------------------------------ #
-# Message handler
-# ------------------------------------------------------------------ #
-def process_message(ch, method, properties, body):
+# ────────────────────────────────────────────────────────────────────────
+# ACTUAL CREATE / UPDATE LOGIC
+# ────────────────────────────────────────────────────────────────────────
+def _create_user_logic(user: dict):
+    ref = safe(user.get('uid'))
+    # 1) Skip if already exists
+    exists = models.execute_kw(
+        ODOO_DB, UID, ODOO_API,
+        'res.partner','search_read',
+        [[['ref','=',ref]]],
+        {'limit':1,'context':{'skip_rabbit':True}}
+    )
+    if exists:
+        logging.info("User %s already exists", ref)
+        return
+    # 2) Build partner vals
+    vals = {
+        'ref':           ref,
+        'name':          f"{safe(user.get('first_name'))} {safe(user.get('last_name'))}",
+        'email':         safe(user.get('email')),
+        'integration_pw_hash': safe(user.get('password')),
+        'customer_rank': 1,
+        'company_type':  'person',
+    }
+    # optional company address, country, title …
+    country_id = get_country_id(user.get('country'))
+    if country_id:
+        vals['country_id'] = country_id
+    title_id = get_title_id(user.get('title'))
+    if title_id:
+        vals['title'] = title_id
+    # 3) Create
+    partner_id = models.execute_kw(
+        ODOO_DB, UID, ODOO_API,
+        'res.partner','create',[vals],
+        {'context':{'skip_rabbit':True}}
+    )
+    logging.info("Created user %s → %s", ref, partner_id)
+
+def _update_user_logic(user: dict):
+    ref = safe(user.get('uid'))
+    ids = models.execute_kw(
+        ODOO_DB, UID, ODOO_API,
+        'res.partner','search',[[['ref','=',ref]]],
+        {'context':{'active_test':False,'skip_rabbit':True}}
+    )
+    if not ids:
+        logging.info("User %s not found (update skipped)", ref)
+        return
+    vals = {
+        'name':  f"{safe(user.get('first_name'))} {safe(user.get('last_name'))}",
+        'email': safe(user.get('email')),
+    }
+    pw = safe(user.get('password'))
+    if pw:
+        vals['integration_pw_hash'] = pw
+    title_id = get_title_id(user.get('title'))
+    if title_id:
+        vals['title'] = title_id
+    models.execute_kw(
+        ODOO_DB, UID, ODOO_API,
+        'res.partner','write',[ids, vals],
+        {'context':{'skip_rabbit':True}}
+    )
+    logging.info("Updated user %s", ref)
+
+# ────────────────────────────────────────────────────────────────────────
+# MESSAGE DISPATCHER
+# ────────────────────────────────────────────────────────────────────────
+def process_message(ch, method, props, body):
+    text = body.decode() if isinstance(body, (bytes, bytearray)) else body
     try:
-        parsed = xmltodict.parse(body.decode())
-        info   = parsed.get('attendify', {}).get('info', {})
-        op     = safe(info.get('operation')).lower()
+        data = xmltodict.parse(text)
+        op   = data['attendify']['info']['operation'].strip().lower()
 
-        if op == 'delete':
-            _handle_delete(parsed)
+        if   op == 'create':
+            _handle_create(data)
         elif op == 'update':
-            _handle_update(parsed)
-        elif op == 'create':
-            _handle_create(parsed)
+            _handle_update(data)
+        elif op == 'delete':
+            _handle_delete(data)
         else:
             raise ValueError(f"Unknown operation: {op}")
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
-    except Exception as exc:
-        logging.error("Error processing message: %s", exc, exc_info=True)
+    except Exception:
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
 
-# ------------------------------------------------------------------ #
-# Handlers
-# ------------------------------------------------------------------ #
-def _handle_delete(parsed):
-    uid_value = safe(parsed['attendify']['user'].get('uid'))
-    if not uid_value:
-        raise ValueError('UID missing in delete message')
-    delete_user(uid_value)
-
-
-def _handle_update(parsed):
-    user = parsed['attendify']['user']
-    ref  = safe(user.get('uid'))
-    if not ref:
-        raise ValueError('UID missing in update message')
-
-    partner_ids = models.execute_kw(
-        ODOO_DB, ODOO_UID, ODOO_API_KEY,
-        'res.partner', 'search', [[['ref', '=', ref]]],
-        {'context': {'active_test': False, 'skip_rabbit': True}}
-    )
-    if not partner_ids:
-        logging.info("Partner %s not found (update ignored)", ref)
-        return
-
-    update_vals = {
-        'name':  f"{safe(user.get('first_name'))} {safe(user.get('last_name'))}",
-        'email': safe(user.get('email')),
-    }
-
-    # wachtwoordhash updaten ALS er in het XML-bericht eentje zit
-    pw_hash = safe(user.get('password'))
-    if pw_hash:
-        update_vals['integration_pw_hash'] = pw_hash
-
-    title_id = get_title_id(user.get('title'))
-    if title_id:
-        update_vals['title'] = title_id
-
-    models.execute_kw(
-        ODOO_DB, ODOO_UID, ODOO_API_KEY,
-        'res.partner', 'write', [partner_ids, update_vals],
-        {'context': {'skip_rabbit': True}}
-    )
-    logging.info("Updated user %s", ref)
-
-
-def _handle_create(parsed):
-    user = parsed['attendify']['user']
-    ref  = safe(user.get('uid'))
-    if not ref:
-        raise ValueError('UID missing in create message')
-
-    existing = models.execute_kw(
-        ODOO_DB, ODOO_UID, ODOO_API_KEY,
-        'res.partner', 'search', [[['ref', '=', ref]]],
-        {'limit': 1, 'context': {'skip_rabbit': True}}
-    )
-    if existing:
-        logging.info("User %s already exists (create skipped)", ref)
-        return
-
-    addr = user.get('address', {}) or {}
-    person_vals = {
-        'ref':          ref,
-        'is_company':   False,
-        'customer_rank': 1,
-        'company_type': 'person',
-        'name':         f"{safe(user.get('first_name'))} {safe(user.get('last_name'))}",
-        'email':        safe(user.get('email')),
-        'phone':        safe(user.get('phone_number')),
-        'street':       safe(addr.get('street')),
-        'street2':      f"{safe(addr.get('number'))} Bus {safe(addr.get('bus_number'))}".strip(),
-        'city':         safe(addr.get('city')),
-        'zip':          safe(addr.get('postal_code')),
-        # NEW: hash van het XML-bericht opslaan
-        'integration_pw_hash': safe(user.get('password')),
-    }
-
-    country_id = get_country_id(addr.get('country'))
-    if country_id:
-        person_vals['country_id'] = country_id
-
-    title_id = get_title_id(user.get('title'))
-    if title_id:
-        person_vals['title'] = title_id
-
-    # -- Bedrijf optioneel --
-    company_id = False
-    if bool_from_str(user.get('from_company')):
-        comp      = user.get('company', {}) or {}
-        comp_addr = comp.get('address', {}) or {}
-        company_vals = {
-            'name':  safe(comp.get('name')),
-            'vat':   safe(comp.get('VAT_number')),
-            'is_company': True,
-            'customer_rank': 1,
-            'company_type': 'company',
-            'street': safe(comp_addr.get('street')),
-            'street2': safe(comp_addr.get('number')),
-            'city':   safe(comp_addr.get('city')),
-            'zip':    safe(comp_addr.get('postal_code')),
-        }
-        cc = get_country_id(comp_addr.get('country'))
-        if cc:
-            company_vals['country_id'] = cc
-        company_id = get_or_create_company_id(company_vals)
-        person_vals['parent_id'] = company_id
-
-    partner_id = models.execute_kw(
-        ODOO_DB, ODOO_UID, ODOO_API_KEY,
-        'res.partner', 'create', [person_vals],
-        {'context': {'skip_rabbit': True}}
-    )
-    logging.info("Created user %s (ID %s)", ref, partner_id)
-
-    # Facturatie‑adres
-    inv_addr = user.get('payment_details', {}).get('facturation_address', {}) or {}
-    if any(inv_addr.values()):  # alleen als er data is
-        invoice_vals = {
-            'type': 'invoice',
-            'parent_id': partner_id,
-            'name': f"{safe(user.get('first_name'))} {safe(user.get('last_name'))} (Invoice Address)",
-            'street': safe(inv_addr.get('street')),
-            'street2': f"{safe(inv_addr.get('number'))} Bus {safe(inv_addr.get('company_bus_number'))}".strip(),
-            'city': safe(inv_addr.get('city')),
-            'zip': safe(inv_addr.get('postal_code')),
-            'email': safe(user.get('email')),
-            'phone': safe(user.get('phone_number')),
-        }
-        inv_country_id = get_country_id(inv_addr.get('country'))
-        if inv_country_id:
-            invoice_vals['country_id'] = inv_country_id
-
-        invoice_id = models.execute_kw(
-            ODOO_DB, ODOO_UID, ODOO_API_KEY,
-            'res.partner', 'create',
-            [invoice_vals],
-            {'context': {'skip_rabbit': True}}
-        )
-        logging.info("Created invoice address for %s (ID %s)", uid_value, invoice_id)
-
-
-
-# Main – start consumer
-def main():
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s %(levelname)s %(message)s'
-    )
-    logging.info("Connecting to RabbitMQ…")
-    connection = pika.BlockingConnection(RABBIT_PARAMS)
-    channel    = connection.channel()
-    
-    channel.basic_consume(queue=QUEUE_MAIN,
-                          on_message_callback=process_message,
-                          auto_ack=False)
+# ────────────────────────────────────────────────────────────────────────
+# STARTUP (only when run as __main__)
+# ────────────────────────────────────────────────────────────────────────
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO)
+    ch.basic_consume(queue=QUEUE_MAIN,
+                     on_message_callback=process_message,
+                     auto_ack=False)
     logging.info("Waiting for user messages…")
     try:
-        channel.start_consuming()
+        ch.start_consuming()
     except KeyboardInterrupt:
-        logging.info("Stopping consumer…")
-        channel.stop_consuming()
+        ch.stop_consuming()
     finally:
-        connection.close()
+        conn.close()
 
 
 if __name__ == '__main__':
