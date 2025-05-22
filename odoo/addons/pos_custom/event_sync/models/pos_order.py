@@ -55,6 +55,14 @@ class PosOrder(models.Model):
     # ---------------------------------------------------------------------
     #  XML helpers
     # ---------------------------------------------------------------------
+    def _is_settled(self):
+    #return yes if its payed with cash/card, return no if its on the customers account.
+    immediate_types = ("cash", "bank")
+    for pay in self.payment_ids:
+        if pay.payment_method_id.type not in immediate_types:
+            return False
+    return True
+
     def _build_raw_xml(self, order):
         root = ET.Element("attendify")
         root.set("xmlns:xsi", "http://www.w3.org/2001/XMLSchema-instance")
@@ -68,7 +76,7 @@ class PosOrder(models.Model):
         ET.SubElement(tab, "uid").text       = order.partner_id.ref or ""
         ET.SubElement(tab, "event_id").text  = order.event_uid or ""
         ET.SubElement(tab, "timestamp").text = order.date_order.isoformat()
-
+        ET.SubElement(tab, "is_paid").text = "true" if order._is_settled() else "false"
         items = ET.SubElement(tab, "items")
         for line in order.lines:
             item = ET.SubElement(items, "tab_item")
