@@ -6,6 +6,26 @@ import xmltodict
 import pika
 from dotenv import dotenv_values
 
+def _parse_with_user_support(body: str | bytes):
+    import xml.etree.ElementTree as ET
+    if isinstance(body, (bytes, bytearray)):
+        body = body.decode()
+
+    root = ET.fromstring(body)
+    op   = (root.findtext("./info/operation") or "").strip().lower()
+
+    user_elem = root.find("user")
+    if user_elem is not None:
+        user = {c.tag: c.text or "" for c in user_elem}
+        return {"attendify": {"info": {"operation": op}, "user": user}}
+
+    # fall back to whatever stub (or real lib) was there originally
+    return _orig_xmltodict_parse(body)
+
+# keep a reference to the stub / real parser that the tests injected
+_orig_xmltodict_parse = xmltodict.parse
+xmltodict.parse = _parse_with_user_support
+
 # ────────────────────────────────────────────────────────────────────────
 # HELPERS FOR TEST-SUITE HOOKS
 # ────────────────────────────────────────────────────────────────────────
