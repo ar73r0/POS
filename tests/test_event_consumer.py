@@ -50,14 +50,20 @@ sys.modules["pika"] = pika_mod
 # 0d) xmlrpc.client.ServerProxy
 import xmlrpc.client as _xmlrpc_client
 _orig_ServerProxy = _xmlrpc_client.ServerProxy
+
 def _dummy_ServerProxy(url):
     class Dummy(object): pass
     inst = Dummy()
     if url.endswith("/common"):
         inst.authenticate = lambda db, email, key, ctx: 42
     elif url.endswith("/object"):
-        # we will override execute_kw in each test as needed
-        inst.execute_kw = lambda *a, **k: []
+        def execute_kw(db, uid, key, model, method, args, kwargs=None):
+            # stub search_read on uom.uom for "Unit"
+            if model == "uom.uom" and method == "search_read":
+                return [{"id": 1}]
+            # default empty, tests can override inst.execute_kw as needed
+            return []
+        inst.execute_kw = execute_kw
     return inst
 _xmlrpc_client.ServerProxy = _dummy_ServerProxy
 
@@ -191,7 +197,7 @@ class TestConsumerEvent(unittest.TestCase):
         args = m.call_args_list[-1][0]
         self.assertEqual(args[3], "event.event")
         self.assertEqual(args[4], "write")
-        # five= [[55], vals], so ID is args[5][0][0]
+        # five= [[55], vals], dus ID is args[5][0][0]
         self.assertEqual(args[5][0][0], 55)
         self.assertIsInstance(args[5][1], dict)
         self.assertEqual(m.call_args_list[-1][0][6], {"context": {"skip_rabbit": True}})
