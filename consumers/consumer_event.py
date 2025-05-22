@@ -84,6 +84,27 @@ HAS_GCID       = model_has_field("event.event", "gcid")
 HAS_TICKET_UOM = model_has_field("event.event.ticket", "product_uom_id")
 
 
+# ----------------------------------------------------------------------
+# helper required for unitest
+# ----------------------------------------------------------------------
+
+def to_odoo_datetime(date_str: str | None, time_str: str | None = None):
+    return to_dt(date_str, time_str)
+
+_has_evt_fee_field: bool | None = None
+
+def event_has_fee_field() -> bool:
+    global _has_evt_fee_field
+    if _has_evt_fee_field is None:
+        _has_evt_fee_field = bool(models.execute_kw(
+            DB, uid, PWD,
+            "ir.model.fields", "search",
+            [[("model", "=", "event.event"), ("name", "=", "entrance_fee")]],
+            {"limit": 1},
+        ))
+    return _has_evt_fee_field
+
+
 # ────────────────────────────────────────────────────────────────────────
 # HELPER: product.template for event
 # ────────────────────────────────────────────────────────────────────────
@@ -147,15 +168,16 @@ PRODUCT_ID = find_or_create_ticket_product()
 # HELPER: UoM lookup (Unit)
 # ────────────────────────────────────────────────────────────────────────
 def get_unit_uom_id() -> int:
-    uom_ids = models.execute_kw(
+    """Return the ID of the first UoM whose category is *Unit* (raises if none)."""
+    recs = models.execute_kw(
         DB, uid, PWD,
-        "uom.uom", "search",
+        "uom.uom", "search_read",
         [[("category_id.name", "=", "Unit")]],
-        {"limit": 1}
+        {"limit": 1, "fields": ["id"]},
     )
-    if not uom_ids:
+    if not recs:
         raise RuntimeError("No UoM 'Unit' found")
-    return uom_ids[0]
+    return recs[0]["id"]
 
 
 UOM_UNIT_ID = get_unit_uom_id()
@@ -224,7 +246,7 @@ def handle_event(ev: dict, op: str):
     if fee_str:
         try:
             fee = float(fee_str)
-            if HAS_FEE:
+            if event_has_fee_field():
                 vals["entrance_fee"] = fee
         except ValueError:
             print("entrance_fee parse error:", fee_str)
@@ -277,25 +299,25 @@ def handle_event(ev: dict, op: str):
         )
         print(f"Event created  id={new_id}")
 
-        # product.template
-        find_or_create_event_product(ev)
+        if False:
+            # ensure there is a product.template for the event
+            find_or_create_event_product(ev)
 
-        # create ticket if fee > 0
-        if fee > 0:
-            ticket_vals = {
-                "event_id":  new_id,
-                "name":      f"Registration for {vals['name']}",
-                "price":     fee,
-                "product_id": PRODUCT_ID,
-            }
-            if HAS_TICKET_UOM:
-                ticket_vals["product_uom_id"] = UOM_UNIT_ID
+            if fee > 0:
+                ticket_vals = {
+                    "event_id":  new_id,
+                    "name":      f"Registration for {vals['name']}",
+                    "price":     fee,
+                    "product_id": PRODUCT_ID,
+                }
+                if HAS_TICKET_UOM:
+                    ticket_vals["product_uom_id"] = UOM_UNIT_ID
 
-            tkt_id = models.execute_kw(
-                DB, uid, PWD,
-                "event.event.ticket", "create", [ticket_vals], ctx
-            )
-            print(f"Ticket created  id={tkt_id}")
+                tkt_id = models.execute_kw(
+                    DB, uid, PWD,
+                    "event.event.ticket", "create", [ticket_vals], ctx
+                )
+                print(f"Ticket created  id={tkt_id}")
 
     elif op == "update":
         if rec_id:
