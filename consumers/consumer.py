@@ -334,7 +334,7 @@ COUNTRY_NAME_TO_CODE: Dict[str, str] = {
                         "Åland Islands": "AX"
                     }
 
- def get_country_id(country_name: str):
+def get_country_id(country_name: str):
     code = COUNTRY_NAME_TO_CODE.get(safe(country_name).title())
     if not code:
         return False
