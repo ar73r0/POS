@@ -184,19 +184,24 @@ def find_or_create_venue_partner(name: str) -> int:
 # ────────────────────────────────────────────────────────────────────────
 # MESSAGE HANDLER
 # ────────────────────────────────────────────────────────────────────────
-def process_message(ch, method, props, body: bytes):
+def process_message(ch, method, props, body):
     try:
         msg  = xmltodict.parse(body)
-        op   = msg["attendify"]["info"]["operation"].lower()
-        if "event" in msg["attendify"]:
-            handle_event(msg["attendify"]["event"], op)
-        elif "event_attendee" in msg["attendify"]:
-            handle_attendee(msg["attendify"]["event_attendee"], op)
+        root = msg.get("attendify", {})
+        op   = root["info"]["operation"].lower()
+
+        if "event" in root:
+            handle_event(root["event"], op)
+        elif "event_attendee" in root:
+            handle_attendee(root["event_attendee"], op)
         else:
             print("Unknown payload type")
-        ch.basic_ack(delivery_tag=method.delivery_tag)
+
+        ch.basic_ack(delivery_tag=method.delivery_tag)  # ACK only after success
     except Exception as e:
         print("Error processing message:", e)
+        ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)  # drop bad one
+
 
 
 # ────────────────────────────────────────────────────────────────────────
