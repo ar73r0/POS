@@ -87,9 +87,9 @@ def event_has_fee_field() -> bool:
     return _has_evt_fee_field
 
 HAS_GCID       = model_has_field("event.event", "gcid")
+HAS_EVT_TICKET = model_has_field("event.event", "ticket_ids")
 HAS_TICKET_UOM = model_has_field("event.event.ticket", "product_uom_id")
 
-# product / ticket / UoM helpers (unchanged from your code)  ────────────
 def find_or_create_event_product(ev: dict) -> int:
     title        = ev.get("title")
     event_uid    = ev.get("uid")
@@ -132,7 +132,7 @@ def find_or_create_ticket_product() -> int:
         [{"name": "Event Registration", "type": "service"}],
     )
 
-PRODUCT_ID = find_or_create_ticket_product()
+PRODUCT_ID   = find_or_create_ticket_product()
 
 def get_unit_uom_id() -> int:
     recs = models.execute_kw(
@@ -169,20 +169,21 @@ def handle_event(ev: dict, op: str):
 
     vals = {
         "external_uid": event_uid,
-        "name": ev.get("title"),
-        "description": ev.get("description") or "",
-        "date_begin": to_dt(ev.get("start_date"), ev.get("start_time")),
-        "date_end":   to_dt(ev.get("end_date"),   ev.get("end_time")),
+        "name":         ev.get("title"),
+        "description":  ev.get("description") or "",
+        "date_begin":   to_dt(ev.get("start_date"), ev.get("start_time")),
+        "date_end":     to_dt(ev.get("end_date"),   ev.get("end_time")),
     }
 
     fee_str = ev.get("entrance_fee") or ""
-    try:
-        fee = float(fee_str) if fee_str else 0.0
-        if fee_str and event_has_fee_field():
-            vals["entrance_fee"] = fee
-    except ValueError:
-        print("entrance_fee parse error:", fee_str)
-        fee = 0.0
+    fee = 0.0
+    if fee_str:
+        try:
+            fee = float(fee_str)
+            if event_has_fee_field():
+                vals["entrance_fee"] = fee
+        except ValueError:
+            print("entrance_fee parse error:", fee_str)
 
     if HAS_GCID and ev.get("gcid"):
         vals["gcid"] = ev["gcid"].strip()
@@ -202,7 +203,7 @@ def handle_event(ev: dict, op: str):
     limit_val = ev.get("registration_limit") or ev.get("seats_max") or ev.get("limit")
     if limit_val:
         try:
-            vals["seats_max"] = int(limit_val)
+            vals["seats_max"]   = int(limit_val)
             vals["seats_limited"] = True
         except ValueError:
             print("seats_max parse error:", limit_val)
@@ -213,63 +214,167 @@ def handle_event(ev: dict, op: str):
         {"limit": 1, "fields": ["id"]},
     )
     rec_id = existing and existing[0]["id"]
-    ctx = {"context": {"skip_rabbit": True}}
+    ctx    = {"context": {"skip_rabbit": True}}
 
     if op == "create":
         if rec_id:
             print(f"Event exists (id={rec_id}), skipping")
             return
-        new_id = models.execute_kw(DB, uid, PWD, "event.event", "create", [vals], ctx)
+
+        new_id = models.execute_kw(
+            DB, uid, PWD, "event.event", "create", [vals], ctx
+        )
         print(f"Event created  id={new_id}")
-        # ticket / product creation skipped during unit-tests
+
+        # ─────────── ticket‐line creation ───────────
+        if HAS_EVT_TICKET and fee > 0:
+            prod_tpl_id = find_or_create_event_product(ev)
+            ticket_vals = {
+                "event_id":        new_id,
+                "name":            "Standard ticket",
+                "product_id":      PRODUCT_ID,
+                "product_tmpl_id": prod_tpl_id,
+                "seats":           1,
+                "price":           fee,
+            }
+            if HAS_TICKET_UOM:
+                ticket_vals["product_uom_id"] = UOM_UNIT_ID
+
+            models.execute_kw(
+                DB, uid, PWD,
+                "event.event.ticket", "create",
+                [ticket_vals], ctx
+            )
+            print(f"Ticket line created  event={new_id}")
+
     elif op == "update":
         if rec_id:
-            models.execute_kw(DB, uid, PWD, "event.event", "write", [[rec_id], vals], ctx)
+            models.execute_kw(
+                DB, uid, PWD, "event.event", "write",
+                [[rec_id], vals], ctx
+            )
             print(f"Event updated  id={rec_id}")
+
     elif op == "delete":
         if rec_id:
-            models.execute_kw(DB, uid, PWD, "event.event", "unlink", [[rec_id]], ctx)
+            models.execute_kw(
+                DB, uid, PWD, "event.event", "unlink",
+                [[rec_id]], ctx
+            )
             print(f"Event deleted  id={rec_id}")
 
-# ----------------------------------------------------------------------
-# Thin wrappers the unit-tests patch
-# ----------------------------------------------------------------------
+# ────────────────────────────────────────────────────────────────────────
+# Thin wrappers so the old‐style fallback tests still work
+# ────────────────────────────────────────────────────────────────────────
 def _handle_event_create(root_elem):
     ev = {c.tag: c.text or "" for c in root_elem.find("event")}
     handle_event(ev, "create")
-
 def _handle_event_update(root_elem):
     ev = {c.tag: c.text or "" for c in root_elem.find("event")}
     handle_event(ev, "update")
-
 def _handle_event_delete(root_elem):
     ev = {c.tag: c.text or "" for c in root_elem.find("event")}
     handle_event(ev, "delete")
-# ----------------------------------------------------------------------
-
-# (handle_attendee unchanged from your code)  ───────────────────────────
-def handle_attendee(ea: dict, op: str):
-    # … same as before …
-    pass  # abbreviated for brevity; keep your original body here
 
 # ────────────────────────────────────────────────────────────────────────
-# MESSAGE DISPATCHER
+# ATTENDEE CRUD
+# ────────────────────────────────────────────────────────────────────────
+def handle_attendee(ea: dict, op: str):
+    user_uid  = ea.get("uid")
+    event_uid = ea.get("event_id")
+    print(f"\nATTENDEE {op.upper()}  user={user_uid} event={event_uid}")
+
+    # Lookup the partner by its ref (= user_uid)
+    partner = models.execute_kw(
+        DB, uid, PWD,
+        "res.partner", "search_read",
+        [[("ref", "=", user_uid)]],
+        {"limit": 1, "fields": ["id"]}
+    )
+    if not partner:
+        print("User UID not found; skipping attendee")
+        return
+    partner_id = partner[0]["id"]
+
+    # Lookup the event by its external_uid
+    event = models.execute_kw(
+        DB, uid, PWD,
+        "event.event", "search_read",
+        [[("external_uid", "=", event_uid)]],
+        {"limit": 1, "fields": ["id"]}
+    )
+    if not event:
+        print("Event UID not found; skipping attendee")
+        return
+    event_id = event[0]["id"]
+
+    # Check for existing registration
+    existing = models.execute_kw(
+        DB, uid, PWD,
+        "event.registration", "search_read",
+        [[("event_id", "=", event_id), ("partner_id", "=", partner_id)]],
+        {"limit": 1, "fields": ["id"]}
+    )
+    reg_id = existing and existing[0]["id"]
+    ctx    = {"context": {"skip_rabbit": True}}
+
+    # Helper to fetch the first ticket line
+    def _get_first_ticket_id(ev_id: int):
+        tix = models.execute_kw(
+            DB, uid, PWD,
+            "event.event.ticket", "search_read",
+            [[("event_id", "=", ev_id)]],
+            {"limit": 1, "fields": ["id"], "order": "id ASC"}
+        )
+        return tix[0]["id"] if tix else False
+
+    if op == "register":
+        if reg_id:
+            print(f"Already registered (id={reg_id}); skipping")
+            return
+        # include a ticket line if available
+        ticket_id = _get_first_ticket_id(event_id)
+        reg_vals  = {"event_id": event_id, "partner_id": partner_id}
+        if ticket_id:
+            reg_vals["event_ticket_id"] = ticket_id
+
+        new_id = models.execute_kw(
+            DB, uid, PWD,
+            "event.registration", "create", [reg_vals], ctx
+        )
+        print(f"Registered  id={new_id}")
+
+    elif op == "unregister":
+        if reg_id:
+            models.execute_kw(
+                DB, uid, PWD,
+                "event.registration", "unlink", [[reg_id]], ctx
+            )
+            print(f"Unregistered  id={reg_id}")
+        else:
+            print("Nothing to delete (registration not found)")
+
+    else:
+        print(f"Ignored attendee op '{op}' (unsupported)")
+
+
+# ────────────────────────────────────────────────────────────────────────
+# DISPATCHER
 # ────────────────────────────────────────────────────────────────────────
 def process_message(ch, method, props, body):
     text = body.decode() if isinstance(body, (bytes, bytearray)) else body
 
     try:
-        data  = xmltodict.parse(text)
-        root  = data.get("attendify", {})
-        op    = root["info"]["operation"].lower()
+        data = xmltodict.parse(text)
+        root = data.get("attendify", {})
+        op   = root["info"]["operation"].lower()
 
-        if "event" in root:
+        if   "event" in root:
             handle_event(root["event"], op)
         elif "event_attendee" in root:
             handle_attendee(root["event_attendee"], op)
 
     except Exception:
-        # fallback for the minimal stub used in unit-tests
         import xml.etree.ElementTree as ET
         try:
             root_elem = ET.fromstring(text)
@@ -280,8 +385,6 @@ def process_message(ch, method, props, body):
                 _handle_event_update(root_elem)
             elif op == "delete":
                 _handle_event_delete(root_elem)
-            else:
-                print("Unknown payload type (fallback)")
         except Exception as e:
             print("Error processing message:", e)
             ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)
@@ -289,10 +392,6 @@ def process_message(ch, method, props, body):
 
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
-# ────────────────────────────────────────────────────────────────────────
-# START CONSUMING (prod only)
-# ────────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    print("Waiting for RabbitMQ messages …")
     ch.basic_consume(queue=queue, on_message_callback=process_message, auto_ack=False)
     ch.start_consuming()
