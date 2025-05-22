@@ -5,12 +5,11 @@ on:
     branches: [ main ]
 
 jobs:
-# ──────────────────────────────
-#  1. Run unit‑tests
-# ──────────────────────────────
+  # ──────────────────────────────
+  #  1. Run unit-tests with pytest
+  # ──────────────────────────────
   run-tests:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -23,21 +22,29 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt ; fi
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install -r odoo/requirements.txt
+          pip install pytest
 
-      - name: Run unit‑tests
+      - name: Load test environment variables
         run: |
-          python -m unittest discover -s tests -p "test_*.py"
+          if [ -f tests/.env ]; then
+            set -o allexport
+            source tests/.env
+            set +o allexport
+          fi
 
-# ──────────────────────────────
-#  2. Build & push Docker image
-#     (runs only if tests passed)
-# ──────────────────────────────
+      - name: Run tests with pytest
+        run: |
+          pytest tests --maxfail=1 --disable-warnings -v
+
+  # ──────────────────────────────
+  #  2. Build & push Docker image
+  #     (runs only if tests passed)
+  # ──────────────────────────────
   build-and-push:
     needs: run-tests
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
