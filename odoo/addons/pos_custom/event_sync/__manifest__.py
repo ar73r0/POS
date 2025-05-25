@@ -14,6 +14,7 @@
             'event_sync/static/src/js/order_patch.js',
             'event_sync/static/src/xml/pos_event_button.xml',
             'event_sync/static/src/js/pos_session_patch.js',
+            "event_sync/static/src/js/pos_model_patch.js",
         ],
     },
     'web.assets_qweb': [
