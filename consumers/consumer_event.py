@@ -4,7 +4,10 @@ import xmltodict
 import xmlrpc.client
 import re
 from dotenv import dotenv_values
-from odoo import api, SUPERUSER_ID
+try:
+    from odoo import SUPERUSER_ID
+except ModuleNotFoundError:
+    SUPERUSER_ID = 1                     # Odoo’s “admin” user id
 
 # ────────────────────────────────────────────────────────────────────────
 # ODOO RPC SETUP

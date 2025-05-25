@@ -49,11 +49,7 @@
   <record id="events_pos_config" model="pos.config">
     <field name="name">Events POS</field>
 
-    <!-- Bar/Restaurant flag unchecked -->
-    <field name="module_pos_hr_restaurant" eval="False"/>
-
-    <!-- Default product category -->
-    <field name="start_category_id" ref="pos_cat_drinks"/>
+    <field name="self_ordering_mode">nothing</field>
 
     <!-- Link the three payment methods -->
     <field name="payment_method_ids" eval="[(6, 0, [ref('pm_cash'), ref('pm_card'), ref('pm_account')])]"/>
