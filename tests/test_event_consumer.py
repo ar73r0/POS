@@ -1,10 +1,27 @@
 import os
 import sys
 import unittest
+import types
 import importlib.util
 import xml.etree.ElementTree as ET
 from types import ModuleType, SimpleNamespace
 from unittest.mock import MagicMock
+
+# Create a fake 'odoo' package
+odoo_pkg = types.ModuleType("odoo")
+
+# Create a fake submodule 'odoo.api'
+api_mod = types.ModuleType("odoo.api")
+# Make api.Environment available if your code uses it
+api_mod.Environment = lambda cr, uid, ctx: None
+
+# Attach it
+odoo_pkg.api = api_mod
+odoo_pkg.SUPERUSER_ID = 1
+
+# Register both in sys.modules so 'import odoo' and 'import odoo.api' work
+sys.modules["odoo"] = odoo_pkg
+sys.modules["odoo.api"] = api_mod
 
 # ─── 0) Stub external modules *before* importing consumer_event ─────────
 
@@ -159,6 +176,7 @@ class TestConsumerEvent(unittest.TestCase):
         ]
         m = MagicMock(side_effect=seq)
         ce.models.execute_kw = m
+        ce.open_pos_session_for_event = lambda *a, **kw: None
         ce.HAS_FEE = True
 
         ch     = MagicMock()

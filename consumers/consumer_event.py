@@ -4,6 +4,7 @@ import xmltodict
 import xmlrpc.client
 import re
 from dotenv import dotenv_values
+from odoo import api, SUPERUSER_ID
 
 # ────────────────────────────────────────────────────────────────────────
 # ODOO RPC SETUP
@@ -202,6 +203,50 @@ def process_message(ch, method, props, body):
         print("Error processing message:", e)
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)  # drop bad one
 
+# ────────────────────────────────────────────────────────────────────────
+# HELPER: open a POS session for a new event
+# ────────────────────────────────────────────────────────────────────────
+def open_pos_session_for_event(event_id: int, event_name: str) -> None:
+    """
+    • Picks the POS config called 'Events POS' (created in events_pos_config.xml)
+    • Creates a pos.session linked to that event
+    • Calls action_pos_session_open so it is immediately usable
+    """
+    # 1) look up the config
+    cfg_ids = models.execute_kw(
+        DB, uid, PWD,
+        "pos.config", "search_read",
+        [[("name", "=", "Events POS")]],
+        {"limit": 1, "fields": ["id"]}
+    )
+    if not cfg_ids:
+        print("‼  No pos.config named 'Events POS' found – session NOT opened")
+        return
+
+    config_id = cfg_ids[0]["id"]
+
+    # 2) create the session
+    sess_id = models.execute_kw(
+        DB, uid, PWD,
+        "pos.session", "create",
+        [{
+            "config_id": config_id,
+            "event_id":  event_id,
+            "name":      f"{event_name} – POS",
+            "user_id":   uid,  # owner = this RPC user
+            # 'start_at' let Odoo fill
+        }]
+    )
+    print(f"POS session created  id={sess_id}")
+
+    # 3) put it straight into OPEN state
+    models.execute_kw(
+        DB, uid, PWD,
+        "pos.session", "action_pos_session_open",
+        [[sess_id]]
+    )
+    print(f"POS session opened   id={sess_id}")
+
 
 
 # ────────────────────────────────────────────────────────────────────────
@@ -276,6 +321,7 @@ def handle_event(ev: dict, op: str):
             "event.event", "create", [vals], ctx
         )
         print(f"Event created  id={new_id}")
+        open_pos_session_for_event(new_id, vals["name"])
 
         # product.template
         find_or_create_event_product(ev)

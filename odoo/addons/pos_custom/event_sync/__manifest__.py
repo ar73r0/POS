@@ -2,6 +2,9 @@
     'name': 'Event Sync with RabbitMQ',
     'version': '1.0',
     'depends': ['event', 'point_of_sale'],
+    'data': [
+        'static/src/data/events_pos_config.xml',
+    ],
     'assets': {
         # Odoo 17 POS bundle
         'point_of_sale._assets_pos': [

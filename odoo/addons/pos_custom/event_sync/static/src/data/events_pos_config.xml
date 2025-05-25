@@ -1,0 +1,62 @@
+<!-- data/events_pos_config.xml -->
+<odoo>
+  <!-- 1. Journals / payment methods -->
+  <record id="journal_pos_cash" model="account.journal">
+    <field name="name">POS Cash</field>
+    <field name="type">cash</field>
+    <field name="code">PCSH</field>
+  </record>
+
+  <record id="journal_pos_bank" model="account.journal">
+    <field name="name">POS Bank (Card)</field>
+    <field name="type">bank</field>
+    <field name="code">PBAN</field>
+  </record>
+
+  <record id="journal_pos_debt" model="account.journal">
+    <field name="name">Customer Account</field>
+    <field name="type">sale</field>
+    <field name="code">PCRE</field>
+  </record>
+
+  <!-- 2. POS Payment methods that wrap the journals -->
+  <record id="pm_cash" model="pos.payment.method">
+    <field name="name">Cash</field>
+    <field name="journal_id" ref="journal_pos_cash"/>
+    <field name="is_cash_count" eval="False"/> <!-- Turn OFF cash control so sessions can run in parallel -->
+  </record>
+
+  <record id="pm_card" model="pos.payment.method">
+    <field name="name">Card</field>
+    <field name="journal_id" ref="journal_pos_bank"/>
+    <field name="is_cash_count" eval="False"/>
+  </record>
+
+  <record id="pm_account" model="pos.payment.method">
+    <field name="name">Customer Account</field>
+    <field name="journal_id" ref="journal_pos_debt"/>
+    <field name="split_transactions" eval="True"/>
+    <field name="is_cash_count" eval="False"/>
+  </record>
+
+  <!-- 3. The Drinks/Tickets category your screenshot shows -->
+  <record id="pos_cat_drinks" model="product.category">
+    <field name="name">Drinks/Tickets</field>
+    <field name="parent_id" ref="product.product_category_all"/>
+  </record>
+
+  <!-- 4. The POS configuration itself -->
+  <record id="events_pos_config" model="pos.config">
+    <field name="name">Events POS</field>
+
+    <!-- Bar/Restaurant flag unchecked -->
+    <field name="module_pos_hr_restaurant" eval="False"/>
+
+    <!-- Default product category -->
+    <field name="start_category_id" ref="pos_cat_drinks"/>
+
+    <!-- Link the three payment methods -->
+    <field name="payment_method_ids" eval="[(6, 0, [ref('pm_cash'), ref('pm_card'), ref('pm_account')])]"/>
+
+  </record>
+</odoo>
