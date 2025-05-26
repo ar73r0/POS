@@ -4,10 +4,6 @@ import xmltodict
 import xmlrpc.client
 import re
 from dotenv import dotenv_values
-try:
-    from odoo import SUPERUSER_ID
-except ModuleNotFoundError:
-    SUPERUSER_ID = 1                     # Odoo’s “admin” user id
 
 # ────────────────────────────────────────────────────────────────────────
 # ODOO RPC SETUP
@@ -207,74 +203,6 @@ def process_message(ch, method, props, body):
         ch.basic_nack(delivery_tag=method.delivery_tag, requeue=False)  # drop bad one
 
 
-TEMPLATE_CFG_NAME = "Events POS"          # template card
-
-def get_or_create_config_for_event(event_id: int, event_name: str) -> int:
-    """Return the ID of a POS config dedicated to this event, copying the
-    template the first time."""
-    name = f"POS – {event_name}"
-
-    # 1) already exists?
-    cfg = models.execute_kw(
-        DB, uid, PWD,
-        "pos.config", "search_read",
-        [[("name", "=", name)]],
-        {"limit": 1, "fields": ["id"]}
-    )
-    if cfg:
-        return cfg[0]["id"]
-
-    # 2) copy from template
-    template_id = models.execute_kw(
-        DB, uid, PWD,
-        "pos.config", "search",
-        [[("name", "=", TEMPLATE_CFG_NAME)]],
-        {"limit": 1}
-    )[0]
-
-    new_id = models.execute_kw(
-        DB, uid, PWD,
-        "pos.config", "copy",
-        [template_id],
-        {"default": {
-            "name":     name,
-            "event_id": event_id,
-        }},
-    )
-    print(f"Created POS config {name} id={new_id}")
-    return new_id
-
-# ────────────────────────────────────────────────────────────────────────
-# HELPER: open a POS session for a new event
-# ────────────────────────────────────────────────────────────────────────
-def open_pos_session_for_event(event_id, event_name):
-    # 1) find the config
-    config_id = get_or_create_config_for_event(event_id, event_name)
-
-    # 2️⃣ if a session is already OPEN → reuse
-    opened = models.execute_kw(
-        DB, uid, PWD, "pos.session", "search_read",
-        [[("config_id", "=", config_id), ("state", "=", "opened")]],
-        {"limit": 1, "fields": ["id"]}
-    )
-    if opened:
-        print(f"Session already opened id={opened[0]['id']}")
-        return opened[0]["id"]
-
-    # 3️⃣ if one is in opening_control → finish opening it
-    opening = models.execute_kw(
-        DB, uid, PWD, "pos.session", "search_read",
-        [[("config_id", "=", config_id), ("state", "=", "opening_control")]],
-        {"limit": 1, "fields": ["id"]}
-    )
-    if opening:
-        sess_id = opening[0]["id"]
-        models.execute_kw(DB, uid, PWD,
-            "pos.session", "action_pos_session_open", [[sess_id]])
-        print(f"Opened existing session id={sess_id}")
-        return sess_id
-
-
 
 # ────────────────────────────────────────────────────────────────────────
 # EVENT CRUD
@@ -348,7 +276,6 @@ def handle_event(ev: dict, op: str):
             "event.event", "create", [vals], ctx
         )
         print(f"Event created  id={new_id}")
-        open_pos_session_for_event(new_id, vals["name"])
 
         # product.template
         find_or_create_event_product(ev)

@@ -1,20 +1,17 @@
 /** @odoo-module **/
-import { patch } from "@web/core/utils/patch";
-// Path to the POS Order class
-import Order from "@point_of_sale/app/models/order";
+import { patch } from '@web/core/utils/patch';
+import { Order } from '@point_of_sale/app/store/models';
 
-// Patch the Order prototype
-patch(Order.prototype, "event_sync.Order", {
-    /**
-     * Override the JSON exporter to include our event_id
-     */
-    export_as_JSON(superExportAsJSON) {
-        // call the original
-        const json = superExportAsJSON(...arguments);
-        // pull the event from the store (set earlier by pos_session_patch)
-        const storeEvent = this.env.pos.event;
-        // if selected, attach its ID
-        json.event_id = storeEvent ? storeEvent.id : false;
+patch(Order.prototype, {
+    export_as_JSON() {
+        const json = super.export_as_JSON(...arguments);
+        if (this.event_id) {
+            json.event_id = Number(this.event_id);
+        }
         return json;
+    },
+    init_from_JSON(json) {
+        super.init_from_JSON(...arguments);
+        this.event_id = json.event_id || null;
     },
 });
