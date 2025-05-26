@@ -88,12 +88,16 @@ HAS_TICKET_UOM = model_has_field("event.event.ticket", "product_uom_id")
 # HELPER: product.template for event
 # ────────────────────────────────────────────────────────────────────────
 def find_or_create_event_product(ev: dict) -> int:
-    title        = ev.get("title")
+    title        = ev.get("title") or "Unnamed Event"
     event_uid    = ev.get("uid")
     gcid         = ev.get("gcid")
     fee          = float(ev.get("entrance_fee") or 0.0)
     default_code = event_uid or gcid or title or "event"
 
+    # Build the full product name with "Ticket: " prefix
+    full_name = f"Ticket: {title}"
+
+    # 1) Search for an existing template
     existing = models.execute_kw(
         DB, uid, PWD,
         "product.template", "search_read",
@@ -101,24 +105,86 @@ def find_or_create_event_product(ev: dict) -> int:
         {"limit": 1, "fields": ["id", "name"]}
     )
     if existing:
-        print(f"Product already exists for event {default_code}: {existing[0]['name']}")
-        return existing[0]["id"]
+        template_id = existing[0]["id"]
+        print(f"Product template exists: {existing[0]['name']} (id={template_id})")
+    else:
+        template_id = None
 
-    new_id = models.execute_kw(
+    # 2) Locate Drinks/Tickets POS category
+    pos_cat = models.execute_kw(
         DB, uid, PWD,
-        "product.template", "create",
-        [{
-            "name": title or "Unnamed Event",
-            "type": "service",
-            "default_code": default_code,
-            "list_price": fee,
-            "sale_ok": True,
-            "purchase_ok": False,
-            "description_sale": (ev.get("description") or "") + "\nLocation: " + (ev.get("location") or "")
-        }]
+        "pos.category", "search_read",
+        [[("name", "=", "Drinks/Tickets")]],
+        {"limit": 1, "fields": ["id"]}
     )
-    print(f"Product created for event {default_code}, id={new_id}")
-    return new_id
+    if not pos_cat:
+        raise RuntimeError("POS category ‘Drinks/Tickets’ not found")
+    pos_categ_id = pos_cat[0]["id"]
+
+    # 3) Prepare the template values (no POS fields here)
+    vals = {
+        "name":             full_name,
+        "type":             "service",
+        "default_code":     default_code,
+        "list_price":       fee,
+        "sale_ok":          True,
+        "purchase_ok":      False,
+        "description_sale": (ev.get("description") or "") + "\nLocation: " + (ev.get("location") or ""),
+    }
+
+    # 4) Create or update the template
+    if template_id:
+        models.execute_kw(DB, uid, PWD,
+            "product.template", "write",
+            [[template_id], vals]
+        )
+        print(f"Updated template {template_id} to '{full_name}'")
+    else:
+        template_id = models.execute_kw(DB, uid, PWD,
+            "product.template", "create",
+            [vals]
+        )
+        print(f"Created template {default_code} as '{full_name}' (id={template_id})")
+
+    # 5) Fetch its variants
+    variant_ids = models.execute_kw(DB, uid, PWD,
+        "product.product", "search",
+        [[("product_tmpl_id", "=", template_id)]]
+    )
+    if not variant_ids:
+        print("No variants found, skipping POS setup")
+        return template_id
+
+    # 6) Determine POS field type and set both category + availability
+    has_m2o = model_has_field("product.product", "pos_categ_id")
+    has_m2m = model_has_field("product.product", "pos_categ_ids")
+
+    if has_m2o:
+        write_vals = {
+            "pos_categ_id":     pos_categ_id,
+            "available_in_pos": True,
+        }
+    elif has_m2m:
+        write_vals = {
+            "pos_categ_ids":    [(6, 0, [pos_categ_id])],
+            "available_in_pos": True,
+        }
+    else:
+        # fallback: only toggle available_in_pos if it exists
+        if model_has_field("product.product", "available_in_pos"):
+            write_vals = {"available_in_pos": True}
+        else:
+            print("No POS-category or availability field on product.product; skipping")
+            return template_id
+
+    # 7) Apply to all variants
+    models.execute_kw(DB, uid, PWD,
+        "product.product", "write",
+        [variant_ids, write_vals]
+    )
+    print(f"→ Prefixed name and set POS category + availability on variants {variant_ids}")
+
+    return template_id
 
 
 # ────────────────────────────────────────────────────────────────────────
@@ -284,7 +350,7 @@ def handle_event(ev: dict, op: str):
         if fee > 0:
             ticket_vals = {
                 "event_id":  new_id,
-                "name":      f"Registration for {vals['name']}",
+                "name":      f"Ticket: {vals['name']}",
                 "price":     fee,
                 "product_id": PRODUCT_ID,
             }
