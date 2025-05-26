@@ -1,20 +1,20 @@
 /** @odoo-module **/
+import { patch } from "@web/core/utils/patch";
+// Path to the POS Order class
+import Order from "@point_of_sale/app/models/order";
 
-import { patch }    from "@web/core/utils/patch";
-import { PosStore } from "@point_of_sale/app/store/pos_store";
-
-patch(PosStore.prototype, {
-    name: "event_sync.PosStore",
-
+// Patch the Order prototype
+patch(Order.prototype, "event_sync.Order", {
     /**
-     * Patch the real method:  loadPosSessionInformation
+     * Override the JSON exporter to include our event_id
      */
-    async loadPosSessionInformation(superFn, ...args) {
-        // run the core loader
-        await superFn(...args);
-
-        // keep the event on the store
-        const ev = this.session.event_id;          // [id, display_name] or false
-        this.event = ev ? { id: ev[0], display_name: ev[1] } : null;
+    export_as_JSON(superExportAsJSON) {
+        // call the original
+        const json = superExportAsJSON(...arguments);
+        // pull the event from the store (set earlier by pos_session_patch)
+        const storeEvent = this.env.pos.event;
+        // if selected, attach its ID
+        json.event_id = storeEvent ? storeEvent.id : false;
+        return json;
     },
 });

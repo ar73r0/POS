@@ -1,19 +1,24 @@
 /** @odoo-module **/
 
 import { patch } from "@web/core/utils/patch";
-import PosModel from "point_of_sale.models";
+// POS’s core loader class (ES module path)
+import { PosModel } from "@point_of_sale/app/store/pos_model";
 
 patch(PosModel.prototype, {
-    // Runs *before* the POS actually loads its models list
-    initialize: function (attributes, options) {
-        // Find the session‐loader entry and add event_id to its fields
-        for (const m of this.models) {
-            if (m.model === "pos.session") {
-                m.fields = m.fields.concat(["event_id"]);
-                break;
+    name: "event_sync.PosModel",
+
+    /**
+     * initialize(superInitialize, session, attributes)
+     * Runs before any models are loaded so we can inject our field.
+     */
+    initialize(superInitialize, session, attributes) {
+        // inject into the pos.session loader
+        this.models.forEach((m) => {
+            if (m.model === "pos.session" && !m.fields.includes("event_id")) {
+                m.fields.push("event_id");
             }
-        }
-        // call the original initializer
-        this._super(attributes, options);
+        });
+        // call core initializer
+        return superInitialize(session, attributes);
     },
 });

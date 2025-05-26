@@ -24,12 +24,6 @@ class PosOrder(models.Model):
     # ---------------------------------------------------------------------
     #  POS → backend JSON mapping
     # ---------------------------------------------------------------------
-    @api.model
-    def _order_fields(self, ui_order):
-        res = super()._order_fields(ui_order)
-        # send only the internal ID; the backend related-field will look up the UID
-        res["event_id"] = ui_order.get("event_id") or False
-        return res
 
     # ---------------------------------------------------------------------
     #  XML + RabbitMQ helper exposed to the JS button
@@ -136,6 +130,15 @@ class PosOrder(models.Model):
         except Exception as e:
             _logger.exception("Failed to send XML to RabbitMQ: %s", e)
 
+    @api.model
+    def _order_fields(self, ui_order):
+        """Include our event_id from the UI JSON when creating orders."""
+        # Let core collect its standard fields first
+        vals = super()._order_fields(ui_order)
+        # ui_order['event_id'] comes from our JS order_extension/button code
+        if 'event_id' in ui_order:
+            vals['event_id'] = ui_order.get('event_id') or False
+        return vals
     # ---------------------------------------------------------------------
     #  Automatic push for paid orders
     # ---------------------------------------------------------------------
